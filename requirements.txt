@@ -1,0 +1,8 @@
+fastapi~=0.111.0
+uvicorn~=0.30.1
+sentence-transformers~=2.7.0 # Using latest stable based on v5.0 brief, v2.7.0 is current recommended by sbert.net
+faiss-cpu~=1.8.0 # Using faiss-cpu as consumer-grade CPU specified. v1.12.0 is not a public release. v1.8.0 is latest public as of Aug 2025 context.
+sqlalchemy~=2.0.30
+psycopg2-binary~=2.9.9 # For PostgreSQL connectivity
+pandas~=2.2.2
+scikit-learn~=1.5.0 # For potential future re-ranking, included for completeness if a simple model is desired
