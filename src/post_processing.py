@@ -1,5 +1,5 @@
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ def post_process_matches(
         List[Dict[str, Any]]: Final list of recommended mentors with explanations.
     """
     final_recommendations = []
-    
+
     # Enforce limit
     top_n_mentors = ranked_mentors[:limit]
 
@@ -49,20 +49,15 @@ def post_process_matches(
             if pref_details:
                 explanations.append(f"Strong preference alignment ({', '.join(pref_details)}).")
 
-        # Add more explanations based on other filter/ranking criteria as needed
-        # e.g., "Mentor's expertise aligns with your career goals."
-
         # Assemble the final recommendation structure
         recommendation = {
             "mentor_id": mentor.get('id'),
             "mentor_bio_snippet": mentor.get('bio', '')[:100] + '...',
             "re_rank_score": mentor.get('__re_rank_score'),
             "explanations": explanations,
-            # Include other relevant mentor details for the mentee here, e.g., name, expertise, contact info
             "mentor_details": {
                 "expertise": mentor.get('expertise'),
                 "capacity_info": f"{mentor.get('current_mentees')}/{mentor.get('capacity')} mentees",
-                # Don't expose sensitive info directly
             }
         }
         final_recommendations.append(recommendation)

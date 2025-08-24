@@ -1,13 +1,16 @@
 from sentence_transformers import SentenceTransformer
 import numpy as np
 import logging
+from .config import get_settings # <--- IMPORT SETTINGS
 
 logger = logging.getLogger(__name__)
 
 # Global model instance to avoid reloading for every request
 _model = None
-MODEL_NAME = 'all-MiniLM-L12-v2'
-EMBEDDING_DIM = 384 # Dimension of all-MiniLM-L12-v2 embeddings
+settings = get_settings() # <--- GET SETTINGS INSTANCE
+
+MODEL_NAME = settings.EMBEDDING_MODEL_NAME # <--- USE SETTINGS
+EMBEDDING_DIM = settings.EMBEDDING_DIMENSION # <--- USE SETTINGS
 
 def load_embedding_model():
     """Loads the SentenceTransformer model if not already loaded."""
@@ -57,10 +60,6 @@ def get_embeddings(texts: list[str]) -> list[list[float]] | None:
 
     return embeddings
 
-# Initialize the model on import (or explicitly call load_embedding_model)
-# It's good practice to call it explicitly on app startup in main.py
-# load_embedding_model()
-
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     test_texts = [
@@ -81,5 +80,5 @@ if __name__ == '__main__':
     print(f"Empty list result: {empty_embeddings}")
 
     print("\nTesting with problematic input (should log error and return None):")
-    problematic_embeddings = get_embeddings([None, "valid text"]) # This would raise an internal error in SentenceTransformers
+    problematic_embeddings = get_embeddings([None, "valid text"])
     print(f"Problematic input result: {problematic_embeddings}")

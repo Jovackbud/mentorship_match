@@ -2,27 +2,30 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.engine import URL
+from .config import get_settings # <--- IMPORT SETTINGS
 
 # --- Database Configuration ---
-# You would typically load these from environment variables or a config file
-DB_USER = os.getenv("POSTGRES_USER", "user")
-DB_PASSWORD = os.getenv("POSTGRES_PASSWORD", "password")
-DB_HOST = os.getenv("POSTGRES_HOST", "localhost")
-DB_PORT = os.getenv("POSTGRES_PORT", "5432")
-DB_NAME = os.getenv("POSTGRES_DB", "mentorship_db")
+settings = get_settings() # <--- GET SETTINGS INSTANCE
 
 # Construct the database URL
 DATABASE_URL = URL.create(
     "postgresql+psycopg2",
-    username=DB_USER,
-    password=DB_PASSWORD,
-    host=DB_HOST,
-    port=DB_PORT,
-    database=DB_NAME,
+    username=settings.POSTGRES_USER,
+    password=settings.POSTGRES_PASSWORD,
+    host=settings.POSTGRES_HOST,
+    port=settings.POSTGRES_PORT,
+    database=settings.POSTGRES_DB,
 )
 
-# Create the SQLAlchemy engine
-engine = create_engine(DATABASE_URL)
+# Create the SQLAlchemy engine with connection pooling settings
+engine = create_engine(
+    DATABASE_URL,
+    pool_size=settings.DB_POOL_SIZE,          # <--- ADD POOLING SETTINGS
+    max_overflow=settings.DB_MAX_OVERFLOW,    # <--- ADD POOLING SETTINGS
+    pool_timeout=settings.DB_POOL_TIMEOUT,    # <--- ADD POOLING SETTINGS
+    pool_recycle=settings.DB_POOL_RECYCLE,    # <--- ADD POOLING SETTINGS
+    # echo=True # Uncomment for verbose SQLAlchemy logging (useful for debugging connections)
+)
 
 # Create a SessionLocal class
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -47,5 +50,4 @@ def create_db_and_tables():
 
 if __name__ == "__main__":
     # Example usage for creating tables
-    # In a real application, this would be part of a migration script or init
     create_db_and_tables()
