@@ -1,19 +1,17 @@
 from sentence_transformers import SentenceTransformer
 import numpy as np
 import logging
-from .config import get_settings # <--- IMPORT SETTINGS
+from .config import get_settings
 
 logger = logging.getLogger(__name__)
 
-# Global model instance to avoid reloading for every request
 _model = None
-settings = get_settings() # <--- GET SETTINGS INSTANCE
+settings = get_settings()
 
-MODEL_NAME = settings.EMBEDDING_MODEL_NAME # <--- USE SETTINGS
-EMBEDDING_DIM = settings.EMBEDDING_DIMENSION # <--- USE SETTINGS
+MODEL_NAME = settings.EMBEDDING_MODEL_NAME
+EMBEDDING_DIM = settings.EMBEDDING_DIMENSION
 
 def load_embedding_model():
-    """Loads the SentenceTransformer model if not already loaded."""
     global _model
     if _model is None:
         try:
@@ -26,22 +24,15 @@ def load_embedding_model():
     return _model
 
 def get_embeddings(texts: list[str]) -> list[list[float]] | None:
-    """
-    Encodes a list of texts into embeddings.
-    Handles potential errors during encoding and checks output validity.
-    Returns a list of lists of floats (embeddings) or None if encoding fails fundamentally.
-    """
     if not texts:
         return []
 
     model = load_embedding_model()
     embeddings = None
     try:
-        # Encode with show_progress_bar=False for server environments
         raw_embeddings = model.encode(texts, convert_to_numpy=True, show_progress_bar=False)
-        embeddings = raw_embeddings.tolist() # Convert numpy array to list of lists for JSONB storage
+        embeddings = raw_embeddings.tolist()
 
-        # Validate output: check for NaN or incorrect dimensions
         if not isinstance(embeddings, list) or not all(isinstance(emb, list) for emb in embeddings):
             logger.error(f"Embeddings output is not a list of lists: {type(embeddings)}")
             return None
@@ -74,7 +65,6 @@ if __name__ == '__main__':
     else:
         print("Failed to generate embeddings.")
 
-    # Test error handling (e.g., passing non-string data or empty list)
     print("\nTesting with empty list:")
     empty_embeddings = get_embeddings([])
     print(f"Empty list result: {empty_embeddings}")

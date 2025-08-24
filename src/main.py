@@ -1,23 +1,23 @@
 import os
 import logging
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Query
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional, cast
 from sqlalchemy.orm import Session
 from datetime import datetime
 
-from .config import get_settings # <--- IMPORT SETTINGS
+from .config import get_settings
 from . import database, models
 from .matching_service import MatchingService
 from . import embeddings
-from .embeddings import load_embedding_model # Removed EMBEDDING_DIM from here as it's in Settings
+from .embeddings import load_embedding_model
 from .vector_store import faiss_index_manager
 
 # --- Configure Logging ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-settings = get_settings() # <--- GET SETTINGS INSTANCE
+settings = get_settings()
 
 app = FastAPI(
     title="Career-Focused Mentorship Matching API",
@@ -48,14 +48,12 @@ class MentorCreate(BaseModel):
     preferences: Optional[PreferencesInput] = Field(None, description="Mentor's preferences for mentees.")
     demographics: Optional[Dict[str, Any]] = Field(None, description="Optional demographic information.")
 
-class MentorUpdate(MentorCreate): # Inherit from MentorCreate to allow updating the same fields
-    # Make all fields optional for update, so you only send what you want to change
+class MentorUpdate(MentorCreate): # Inherit from MentorCreate
     bio: Optional[str] = Field(None, min_length=20, description="Brief biography or expertise summary.")
     capacity: Optional[int] = Field(None, ge=1, description="Maximum number of mentees this mentor can take.")
-    # You can add more specific update rules here if needed
 
 class MentorResponse(BaseModel):
-    id: int
+    id: int # Now int
     bio: str
     expertise: Optional[str]
     capacity: int
@@ -78,22 +76,49 @@ class MenteeMatchRequest(BaseModel):
     preferences: Optional[PreferencesInput] = Field(None, description="Your preferences for a mentor.")
     availability: Optional[AvailabilityInput] = Field(None, description="Your availability details for mentorship.")
     mentorship_style: Optional[str] = Field(None, description="Your preferred mentorship style (e.g., 'hands-on', 'guidance-only').")
+    request_message: Optional[str] = Field(None, description="Optional message to be sent with mentorship requests.")
+
 
 class MatchedMentor(BaseModel):
-    mentor_id: int
+    mentor_id: int # Now int
     mentor_bio_snippet: str
     re_rank_score: float
     explanations: List[str]
     mentor_details: Dict[str, Any]
 
 class MatchResponse(BaseModel):
-    mentee_id: int = Field(..., description="The ID of the mentee whose match was requested.")
+    mentee_id: int = Field(..., description="The ID of the mentee whose match was requested.") # Now int
     recommendations: List[MatchedMentor] = Field([], description="List of recommended mentors.")
     message: str = "Recommendations generated successfully."
 
+class MentorshipRequestCreate(BaseModel):
+    # This model is for when a mentee picks a mentor
+    mentor_id: int # Now int
+    mentee_id: int # This should come from the URL/context, not body
+    request_message: Optional[str] = Field(None, description="Optional message from mentee to mentor.")
+
+class MentorshipRequestResponse(BaseModel):
+    id: int # Now int
+    mentee_id: int # Now int
+    mentor_id: int # Now int
+    status: models.MentorshipStatus # Use the Enum for response
+    request_message: Optional[str]
+    request_date: datetime
+    acceptance_date: Optional[datetime]
+    rejection_reason: Optional[str]
+
+    model_config = {
+        "from_attributes": True,
+        "arbitrary_types_allowed": True
+    }
+
+class MentorshipStatusUpdate(BaseModel):
+    status: models.MentorshipStatus
+    rejection_reason: Optional[str] = None # Only relevant for REJECTED status
+
 class FeedbackCreate(BaseModel):
-    mentee_id: int
-    mentor_id: int
+    mentee_id: int # Now int
+    mentor_id: int # Now int
     rating: int = Field(..., ge=1, le=5, description="Rating of the mentor-mentee match (1-5).")
     comment: Optional[str] = Field(None, description="Optional comment about the match.")
 
@@ -107,9 +132,10 @@ async def startup_event():
     try:
         database.create_db_and_tables()
         load_embedding_model() # Pre-load the Sentence Transformer model
-        # Initialize FAISS index with existing mentors (will sync with DB)
+        
         with database.SessionLocal() as db:
             matching_service = MatchingService(db)
+            # This will populate FAISS index directly using mentor.id
             matching_service.initialize_faiss_with_mentors()
         logger.info("Startup sequence completed successfully.")
     except Exception as e:
@@ -120,9 +146,9 @@ async def startup_event():
 async def create_mentor(mentor_data: MentorCreate, db: Session = Depends(database.get_db)):
     """
     Registers a new mentor in the system and adds their embedding to the FAISS index.
+    The database will assign the integer ID automatically.
     """
     try:
-        # Create new mentor ORM object
         db_mentor = models.Mentor(
             bio=mentor_data.bio,
             expertise=mentor_data.expertise,
@@ -133,23 +159,23 @@ async def create_mentor(mentor_data: MentorCreate, db: Session = Depends(databas
         )
         db.add(db_mentor)
         db.commit()
-        db.refresh(db_mentor)
+        db.refresh(db_mentor) # Refresh to get the auto-generated integer ID
 
-        # Generate and store embedding for the new mentor
         text_to_embed = f"{db_mentor.bio or ''} {db_mentor.expertise or ''}"
         mentor_embedding = embeddings.get_embeddings([text_to_embed])
 
         if mentor_embedding is None or not mentor_embedding:
             logger.error(f"Failed to generate embedding for new mentor {db_mentor.id}. Skipping FAISS update.")
-            # Optionally, you might want to delete the mentor or mark them as 'unindexed'
-            # For baseline, we just log and continue.
         else:
-            db_mentor.embedding = cast(List[float], mentor_embedding[0]) # Store in DB for persistence
+            db_mentor.embedding = cast(List[float], mentor_embedding[0])
             db.add(db_mentor)
             db.commit()
             db.refresh(db_mentor)
-            # Add to FAISS (IndexIDMap handles addition directly)
-            faiss_index_manager.add_embedding(cast(List[float], db_mentor.embedding), db_mentor.id)
+            
+            # Add to FAISS directly using the auto-generated integer ID
+            faiss_index_manager.add_embedding(
+                cast(List[float], db_mentor.embedding), db_mentor.id
+            )
 
         logger.info(f"Mentor {db_mentor.id} created and indexed successfully.")
         return db_mentor
@@ -158,10 +184,9 @@ async def create_mentor(mentor_data: MentorCreate, db: Session = Depends(databas
         logger.error(f"Error creating mentor: {e}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Could not create mentor.")
 
-
 @app.put("/mentors/{mentor_id}", response_model=MentorResponse)
 async def update_mentor(
-    mentor_id: int,
+    mentor_id: int, # Now int
     mentor_data: MentorUpdate,
     db: Session = Depends(database.get_db)
 ):
@@ -172,32 +197,27 @@ async def update_mentor(
     if db_mentor is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mentor not found")
 
-    # Keep track of old text for re-embedding check
     old_text_to_embed = f"{db_mentor.bio or ''} {db_mentor.expertise or ''}"
     text_fields_changed = False
 
-    update_data = mentor_data.model_dump(exclude_unset=True) # This converts mentor_data to a dict
+    update_data = mentor_data.model_dump(exclude_unset=True)
 
     for key, value in update_data.items():
         if key == 'availability' or key == 'preferences':
-            # The 'value' here is ALREADY a dictionary from model_dump().
-            # So, assign it directly. No need for value.model_dump().
-            setattr(db_mentor, key, value if value is not None else None) # <--- MAKE THIS CHANGE
+            setattr(db_mentor, key, value if value is not None else None)
         elif key in ['bio', 'expertise']:
-            # Check if text fields changed
             if getattr(db_mentor, key) != value:
                 text_fields_changed = True
             setattr(db_mentor, key, value)
         else:
             setattr(db_mentor, key, value)
 
-    db.add(db_mentor) # Add to session for update
+    db.add(db_mentor)
     db.commit()
-    db.refresh(db_mentor) # Refresh to get latest state and updated_at timestamp
+    db.refresh(db_mentor)
 
-    # Re-generate and update embedding if relevant text fields changed
     new_text_to_embed = f"{db_mentor.bio or ''} {db_mentor.expertise or ''}"
-    if text_fields_changed or new_text_to_embed != old_text_to_embed: # Double check
+    if text_fields_changed or new_text_to_embed != old_text_to_embed:
         new_embedding = embeddings.get_embeddings([new_text_to_embed])
         if new_embedding is None or not new_embedding:
             logger.error(f"Failed to generate embedding for updated mentor {db_mentor.id}. FAISS index not updated for text changes.")
@@ -206,16 +226,17 @@ async def update_mentor(
             db.add(db_mentor)
             db.commit()
             db.refresh(db_mentor)
-            faiss_index_manager.add_embedding(cast(List[float], db_mentor.embedding), db_mentor.id) # add_embedding handles updates
+            faiss_index_manager.add_embedding(
+                cast(List[float], db_mentor.embedding), db_mentor.id
+            )
             logger.info(f"Mentor {db_mentor.id} updated and re-indexed in FAISS successfully.")
     else:
         logger.info(f"Mentor {db_mentor.id} updated in DB, no text changes, FAISS index not touched.")
 
     return db_mentor
 
-
 @app.delete("/mentors/{mentor_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_mentor(mentor_id: int, db: Session = Depends(database.get_db)):
+async def delete_mentor(mentor_id: int, db: Session = Depends(database.get_db)): # Now int
     """
     Deletes a mentor from the system and removes their embedding from the FAISS index.
     """
@@ -223,10 +244,19 @@ async def delete_mentor(mentor_id: int, db: Session = Depends(database.get_db)):
     if db_mentor is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mentor not found")
 
+    active_mentees_for_mentor = db.query(models.MentorshipRequest).filter(
+        models.MentorshipRequest.mentor_id == mentor_id,
+        models.MentorshipRequest.status == models.MentorshipStatus.ACCEPTED.value
+    ).count()
+
+    if active_mentees_for_mentor > 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Mentor has {active_mentees_for_mentor} active mentees. Cannot delete until relationships are ended.")
+
     db.delete(db_mentor)
     db.commit()
 
-    faiss_index_manager.remove_embedding(mentor_id) # Remove from FAISS index
+    faiss_index_manager.remove_embedding(mentor_id) # Remove from FAISS index using integer ID
     logger.info(f"Mentor {mentor_id} deleted from DB and FAISS index.")
     return # 204 No Content
 
@@ -243,10 +273,8 @@ async def get_matches(
     logger.info("Received a new match request.")
     matching_service = MatchingService(db)
 
-    # Convert Pydantic model to a plain dictionary for processing by matching_service
     mentee_profile_data = mentee_request.model_dump(mode='json')
 
-    # Store the mentee in the database and get a persistent ID
     db_mentee = models.Mentee(
         bio=mentee_request.bio,
         goals=mentee_request.goals,
@@ -256,8 +284,8 @@ async def get_matches(
     )
     db.add(db_mentee)
     db.commit()
-    db.refresh(db_mentee) # Refresh to get the generated ID
-    generated_mentee_id = cast(int, db_mentee.id)
+    db.refresh(db_mentee)
+    generated_mentee_id = cast(int, db_mentee.id) # Now int
 
     recommendations = matching_service.get_mentor_recommendations(mentee_profile_data)
 
@@ -278,6 +306,128 @@ async def get_matches(
         recommendations=matched_mentors_response,
         message="Top mentor recommendations generated successfully."
     )
+
+@app.post("/mentee/{mentee_id}/pick_mentor/{mentor_id}", response_model=MentorshipRequestResponse, status_code=status.HTTP_201_CREATED)
+async def pick_mentor(
+    mentee_id: int,
+    mentor_id: int,
+    request_message: Optional[str] = Query(None, description="Optional message for the mentor."),
+    db: Session = Depends(database.get_db)
+):
+    """
+    Allows a mentee to pick a mentor from the recommendations, creating a PENDING mentorship request.
+    """
+    db_mentee = db.query(models.Mentee).filter(models.Mentee.id == mentee_id).first()
+    if db_mentee is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mentee not found")
+
+    db_mentor = db.query(models.Mentor).filter(models.Mentor.id == mentor_id).first()
+    if db_mentor is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mentor not found")
+    
+    existing_request = db.query(models.MentorshipRequest).filter(
+        models.MentorshipRequest.mentee_id == mentee_id,
+        models.MentorshipRequest.mentor_id == mentor_id,
+        models.MentorshipRequest.status == models.MentorshipStatus.PENDING.value
+    ).first()
+    if existing_request:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A pending request already exists for this mentee and mentor.")
+
+    if db_mentor.current_mentees >= db_mentor.capacity:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Mentor has reached maximum capacity.")
+
+    db_request = models.MentorshipRequest(
+        mentee_id=mentee_id,
+        mentor_id=mentor_id,
+        status=models.MentorshipStatus.PENDING.value,
+        request_message=request_message
+    )
+    db.add(db_request)
+    db.commit()
+    db.refresh(db_request)
+    logger.info(f"Mentee {mentee_id} picked mentor {mentor_id}. Request {db_request.id} created with PENDING status.")
+    return db_request
+
+@app.put("/mentor/{mentor_id}/request/{request_id}/accept", response_model=MentorshipRequestResponse)
+async def accept_mentee_request(
+    mentor_id: int, # Now int
+    request_id: int, # Now int
+    db: Session = Depends(database.get_db)
+):
+    """
+    Allows a mentor to accept a pending mentorship request from a mentee.
+    Increments mentor's current_mentees count.
+    """
+    db_request = db.query(models.MentorshipRequest).filter(
+        models.MentorshipRequest.id == request_id,
+        models.MentorshipRequest.mentor_id == mentor_id
+    ).first()
+
+    if db_request is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mentorship request not found for this mentor.")
+    if db_request.status != models.MentorshipStatus.PENDING.value:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Request is not PENDING (current status: {db_request.status}).")
+
+    db_mentor = db.query(models.Mentor).filter(models.Mentor.id == mentor_id).first()
+    if db_mentor is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mentor not found (internal error).")
+
+    if db_mentor.current_mentees >= db_mentor.capacity:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Mentor has reached maximum capacity and cannot accept more mentees.")
+
+    db_request.status = models.MentorshipStatus.ACCEPTED.value
+    db_request.acceptance_date = datetime.now()
+    db_mentor.current_mentees += 1
+
+    db.add(db_request)
+    db.add(db_mentor)
+    db.commit()
+    db.refresh(db_request)
+    db.refresh(db_mentor)
+
+    logger.info(f"Mentorship request {request_id} from mentee {db_request.mentee_id} accepted by mentor {mentor_id}.")
+    return db_request
+
+@app.put("/mentor/{mentor_id}/request/{request_id}/reject", response_model=MentorshipRequestResponse)
+async def reject_mentee_request(
+    mentor_id: int,
+    request_id: int,
+    rejection_reason: Optional[str] = Query(None, description="Optional reason for rejection."), 
+    db: Session = Depends(database.get_db)
+):
+    """
+    Allows a mentor to reject a pending mentorship request from a mentee.
+    If the request was ACCEPTED and is now being rejected/cancelled, it decrements the current_mentees count.
+    """
+    db_request = db.query(models.MentorshipRequest).filter(
+        models.MentorshipRequest.id == request_id,
+        models.MentorshipRequest.mentor_id == mentor_id
+    ).first()
+
+    if db_request is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mentorship request not found for this mentor.")
+    if db_request.status == models.MentorshipStatus.REJECTED.value:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Request is already REJECTED.")
+
+    db_mentor = db.query(models.Mentor).filter(models.Mentor.id == mentor_id).first()
+    if db_mentor is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mentor not found (internal error).")
+
+    if db_request.status == models.MentorshipStatus.ACCEPTED.value:
+        if db_mentor.current_mentees > 0:
+            db_mentor.current_mentees -= 1
+        db.add(db_mentor)
+        logger.info(f"Mentor {mentor_id} current_mentees decremented due to rejection of ACCEPTED request {request_id}.")
+
+    db_request.status = models.MentorshipStatus.REJECTED.value
+    db_request.rejection_reason = rejection_reason
+    db.add(db_request)
+    db.commit()
+    db.refresh(db_request)
+    db.refresh(db_mentor)
+
+    logger.info(f"Mentorship request {request_id} from mentee {db_request.mentee_id} rejected by mentor {mentor_id}.")
+    return db_request
 
 @app.post("/feedback/", status_code=status.HTTP_201_CREATED)
 async def submit_feedback(feedback: FeedbackCreate, db: Session = Depends(database.get_db)):

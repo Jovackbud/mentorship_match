@@ -2,10 +2,10 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.engine import URL
-from .config import get_settings # <--- IMPORT SETTINGS
+from .config import get_settings
 
 # --- Database Configuration ---
-settings = get_settings() # <--- GET SETTINGS INSTANCE
+settings = get_settings()
 
 # Construct the database URL
 DATABASE_URL = URL.create(
@@ -20,11 +20,11 @@ DATABASE_URL = URL.create(
 # Create the SQLAlchemy engine with connection pooling settings
 engine = create_engine(
     DATABASE_URL,
-    pool_size=settings.DB_POOL_SIZE,          # <--- ADD POOLING SETTINGS
-    max_overflow=settings.DB_MAX_OVERFLOW,    # <--- ADD POOLING SETTINGS
-    pool_timeout=settings.DB_POOL_TIMEOUT,    # <--- ADD POOLING SETTINGS
-    pool_recycle=settings.DB_POOL_RECYCLE,    # <--- ADD POOLING SETTINGS
-    # echo=True # Uncomment for verbose SQLAlchemy logging (useful for debugging connections)
+    pool_size=settings.DB_POOL_SIZE,
+    max_overflow=settings.DB_MAX_OVERFLOW,
+    pool_timeout=settings.DB_POOL_TIMEOUT,
+    pool_recycle=settings.DB_POOL_RECYCLE,
+    # echo=True
 )
 
 # Create a SessionLocal class
@@ -49,5 +49,4 @@ def create_db_and_tables():
     print("Database tables created or already exist.")
 
 if __name__ == "__main__":
-    # Example usage for creating tables
     create_db_and_tables()
