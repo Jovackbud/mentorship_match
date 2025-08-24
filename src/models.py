@@ -10,14 +10,14 @@ from .database import Base
 class MentorshipStatus(str, Enum):
     PENDING = "PENDING"
     ACCEPTED = "ACCEPTED"
-    REJECTED = "REJECTED"
-    CANCELLED = "CANCELLED" # If mentee cancels request before mentor acts
+    REJECTED = "REJECTED" # Mentor rejects, or mentee ends prematurely
+    CANCELLED = "CANCELLED" # Mentee cancels a PENDING request
+    COMPLETED = "COMPLETED" # Mentorship successfully concluded
 
 class Mentor(Base):
     __tablename__ = "mentors"
 
-    # Use auto-incrementing Integer as primary key directly
-    id = Column(Integer, Sequence('mentor_id_seq'), primary_key=True, index=True) # Explicit Sequence for clarity
+    id = Column(Integer, Sequence('mentor_id_seq'), primary_key=True, index=True)
     
     bio = Column(Text, nullable=False)
     expertise = Column(Text)
@@ -31,7 +31,6 @@ class Mentor(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Define relationship to MentorshipRequest
     mentorship_requests = relationship("MentorshipRequest", back_populates="mentor")
 
     def __repr__(self):
@@ -40,21 +39,19 @@ class Mentor(Base):
 class Mentee(Base):
     __tablename__ = "mentees"
 
-    # Use auto-incrementing Integer as primary key directly
     id = Column(Integer, Sequence('mentee_id_seq'), primary_key=True, index=True)
 
-    bio = Column(Text, nullable=False) # e.g., CV summary or aspirations
-    goals = Column(Text) # e.g., "Improve leadership skills, land a FAANG job"
+    bio = Column(Text, nullable=False)
+    goals = Column(Text)
     preferences = Column(JSONB, nullable=True)
     availability = Column(JSONB, nullable=True)
     mentorship_style = Column(String, nullable=True)
-    embedding = Column(JSONB, nullable=True) # Store the embedding (if we decide to pre-embed mentees)
+    embedding = Column(JSONB, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Define relationship to MentorshipRequest
-    mentorship_requests = relationship("MentorshipRequest", back_populates="mentee") 
+    mentorship_requests_as_mentee = relationship("MentorshipRequest", back_populates="mentee") # Renamed back_populates to avoid conflict
 
     def __repr__(self):
         return f"<Mentee(id={self.id}, goals='{self.goals[:20]}...')>"
@@ -69,14 +66,14 @@ class MentorshipRequest(Base):
     
     status = Column(String, default=MentorshipStatus.PENDING.value, nullable=False)
     
-    request_message = Column(Text, nullable=True) # Optional message from mentee
+    request_message = Column(Text, nullable=True)
     
     request_date = Column(DateTime(timezone=True), server_default=func.now())
     acceptance_date = Column(DateTime(timezone=True), nullable=True)
-    rejection_reason = Column(Text, nullable=True) # Reason if rejected
+    rejection_reason = Column(Text, nullable=True)
+    completed_date = Column(DateTime(timezone=True), nullable=True) # <--- NEW FIELD
 
-    # Relationships to Mentor and Mentee
-    mentee = relationship("Mentee", back_populates="mentorship_requests") # Adjusted here
+    mentee = relationship("Mentee", back_populates="mentorship_requests_as_mentee") # Adjusted back_populates
     mentor = relationship("Mentor", back_populates="mentorship_requests")
 
     def __repr__(self):
@@ -88,7 +85,7 @@ class Feedback(Base):
     id = Column(Integer, Sequence('feedback_id_seq'), primary_key=True, index=True)
     mentee_id = Column(Integer, nullable=False)
     mentor_id = Column(Integer, nullable=False)
-    rating = Column(Integer, nullable=False) # e.g., 1-5
+    rating = Column(Integer, nullable=False)
     comment = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

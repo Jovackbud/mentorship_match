@@ -1,31 +1,30 @@
+# src/database.py
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.engine import URL
 from .config import get_settings
 
-# --- Database Configuration ---
-settings = get_settings()
+def get_engine():
+    settings = get_settings()
+    DATABASE_URL = URL.create(
+        "postgresql+psycopg2",
+        username=settings.POSTGRES_USER,
+        password=settings.POSTGRES_PASSWORD,
+        host=settings.POSTGRES_HOST,
+        port=settings.POSTGRES_PORT,
+        database=settings.POSTGRES_DB,
+    )
+    return create_engine(
+        DATABASE_URL,
+        pool_size=settings.DB_POOL_SIZE,
+        max_overflow=settings.DB_MAX_OVERFLOW,
+        pool_timeout=settings.DB_POOL_TIMEOUT,
+        pool_recycle=settings.DB_POOL_RECYCLE,
+    )
 
-# Construct the database URL
-DATABASE_URL = URL.create(
-    "postgresql+psycopg2",
-    username=settings.POSTGRES_USER,
-    password=settings.POSTGRES_PASSWORD,
-    host=settings.POSTGRES_HOST,
-    port=settings.POSTGRES_PORT,
-    database=settings.POSTGRES_DB,
-)
-
-# Create the SQLAlchemy engine with connection pooling settings
-engine = create_engine(
-    DATABASE_URL,
-    pool_size=settings.DB_POOL_SIZE,
-    max_overflow=settings.DB_MAX_OVERFLOW,
-    pool_timeout=settings.DB_POOL_TIMEOUT,
-    pool_recycle=settings.DB_POOL_RECYCLE,
-    # echo=True
-)
+# Create the SQLAlchemy engine globally after defining get_engine
+engine = get_engine()
 
 # Create a SessionLocal class
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
