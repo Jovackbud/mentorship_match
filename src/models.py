@@ -51,7 +51,7 @@ class Mentee(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    mentorship_requests_as_mentee = relationship("MentorshipRequest", back_populates="mentee") # Renamed back_populates to avoid conflict
+    mentorship_requests_as_mentee = relationship("MentorshipRequest", back_populates="mentee", cascade="all, delete-orphan") # Renamed back_populates to avoid conflict
 
     def __repr__(self):
         return f"<Mentee(id={self.id}, goals='{self.goals[:20]}...')>"
@@ -62,7 +62,7 @@ class MentorshipRequest(Base):
     id = Column(Integer, Sequence('mentorship_request_id_seq'), primary_key=True, index=True)
     
     mentee_id = Column(Integer, ForeignKey("mentees.id"), nullable=False)
-    mentor_id = Column(Integer, ForeignKey("mentors.id"), nullable=False)
+    mentor_id = Column(Integer, ForeignKey("mentors.id", ondelete="CASCADE"), nullable=False)
     
     status = Column(String, default=MentorshipStatus.PENDING.value, nullable=False)
     

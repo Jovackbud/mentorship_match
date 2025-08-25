@@ -9,3 +9,4 @@ venv
 *.db
 *.sqlite
 *.log
+faiss_mentor_index.bin

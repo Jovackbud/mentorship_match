@@ -11,6 +11,8 @@ def parse_time_range(time_str: str) -> Optional[Tuple[time, time]]:
         start_str, end_str = time_str.split('-')
         start_time = datetime.strptime(start_str, "%H:%M").time()
         end_time = datetime.strptime(end_str, "%H:%M").time()
+        # Handle cases where end time is on the next day (e.g., 23:00-01:00), though current implementation might simplify this to same-day only for overlap calc
+        # For simple overlap, this is often treated as up to midnight. If actual cross-day is needed, date context is required.
         return start_time, end_time
     except ValueError as e:
         logger.warning(f"Failed to parse time range '{time_str}': {e}")
@@ -71,36 +73,46 @@ def apply_filters(mentee_profile: Dict[str, Any], candidate_mentors: List[Dict[s
         List[Dict[str, Any]]: Filtered list of mentor profiles.
     """
     filtered_mentors = []
-    mentee_availability = mentee_profile.get('availability', {})
-    mentee_preferences = mentee_profile.get('preferences', {})
+
+    # Safely get mentee preferences and availability, ensuring they are dicts or empty dicts
+    # The `or {}` idiom ensures that if .get() returns None, it defaults to an empty dictionary.
+    mentee_availability = mentee_profile.get('availability') or {}
+    mentee_preferences = mentee_profile.get('preferences') or {}
+
     mentee_target_industries = [ind.lower() for ind in mentee_preferences.get('industries', [])]
     mentee_target_languages = [lang.lower() for lang in mentee_preferences.get('languages', [])]
 
     for mentor in candidate_mentors:
         mentor_id = mentor.get('id', 'N/A') # For logging
+
         # 1. Capacity Check
         if mentor.get('current_mentees', 0) >= mentor.get('capacity', 1):
             logger.debug(f"Mentor {mentor_id} filtered out: Exceeded capacity.")
             continue
 
         # 2. Availability Overlap Check
-        mentor_availability = mentor.get('availability', {})
-        if mentor_availability and mentee_availability: # Only check if both have availability specified
-            overlap_minutes = calculate_time_overlap_minutes(mentor_availability.get('windows', {}),
-                                                             mentee_availability.get('windows', {}))
+        mentor_availability = mentor.get('availability') or {} # Ensure it's a dict
+        
+        # Only check if both mentee and mentor have 'windows' specified within their availability
+        mentor_windows = mentor_availability.get('windows') or {}
+        mentee_windows = mentee_availability.get('windows') or {}
+
+        if mentor_windows and mentee_windows: # Only check if both have availability windows specified
+            overlap_minutes = calculate_time_overlap_minutes(mentor_windows, mentee_windows)
             if overlap_minutes < min_overlap_minutes:
                 logger.debug(f"Mentor {mentor_id} filtered out: Insufficient availability overlap ({overlap_minutes} min).")
                 continue
             # Store overlap for re-ranking
             mentor['__overlap_minutes'] = overlap_minutes
         else:
-            # If no availability specified by mentor or mentee, consider it a match by default
+            # If no availability windows specified by mentor or mentee, consider it a match by default
             # or apply a stricter rule (e.g., if one has it, other must also)
             logger.debug(f"Mentor {mentor_id}: Availability check skipped (missing data).")
             mentor['__overlap_minutes'] = 0 # Default if not specified
 
         # 3. Preferences Match (Industry/Language)
-        mentor_preferences = mentor.get('preferences', {})
+        # Ensure mentor preferences is a dict
+        mentor_preferences = mentor.get('preferences') or {}
         mentor_industries = [ind.lower() for ind in mentor_preferences.get('industries', [])]
         mentor_languages = [lang.lower() for lang in mentor_preferences.get('languages', [])]
 
@@ -153,10 +165,10 @@ if __name__ == '__main__':
         'availability': {'hours_per_month': 5, 'windows': {'Tue': ['14:00-16:00']}},
         'preferences': {'industries': ['AI'], 'languages': ['English']}
     }
-    mentor3 = {
+    mentor3 = { # This mentor will have preferences: None in some tests, simulating the issue
         'id': 3, 'bio': 'Data Scientist', 'capacity': 3, 'current_mentees': 1,
         'availability': {'hours_per_month': 8, 'windows': {'Mon': ['10:00-11:00'], 'Thu': ['15:00-17:00']}}, # Partial overlap with mentee
-        'preferences': {'industries': ['Data Science'], 'languages': ['Python', 'English']}
+        'preferences': None # <--- Test case for the bug
     }
     mentor4 = {
         'id': 4, 'bio': 'HR, recruiting', 'capacity': 2, 'current_mentees': 0,
@@ -176,6 +188,13 @@ if __name__ == '__main__':
         'preferences': {'industries': ['Tech'], 'languages': ['English']}
     }
 
+    mentee_profile_no_prefs = { # Test case for mentee with no preferences
+        'id': 102, 'bio': 'Aspiring SW Eng with no prefs',
+        'availability': {'hours_per_month': 6, 'windows': {'Mon': ['10:30-12:30'], 'Fri': ['09:00-10:00']}},
+        'preferences': None
+    }
+
+
     candidates = [mentor1, mentor2, mentor3, mentor4, mentor5]
 
     print("\n--- Testing Filters ---")
@@ -187,10 +206,23 @@ if __name__ == '__main__':
 
     assert len(filtered_mentors) == 3, f"Expected 3 filtered mentors, got {len(filtered_mentors)}"
     assert mentor1 in filtered_mentors
-    assert mentor3 in filtered_mentors
+    assert mentor3 in filtered_mentors # Mentor 3 should now pass preference check as mentee has preferences and mentor has None
     assert mentor5 in filtered_mentors
     assert mentor2 not in filtered_mentors # Capacity
     assert mentor4 not in filtered_mentors # Industry mismatch
+
+    print("\n--- Testing Filters with Mentee No Preferences ---")
+    filtered_mentors_no_prefs = apply_filters(mentee_profile_no_prefs, candidates, min_overlap_minutes=30)
+    print("\nFiltered Mentors (Mentee No Prefs):")
+    for m in filtered_mentors_no_prefs:
+         print(f"  Mentor ID: {m['id']}, Current Mentees: {m['current_mentees']}/{m['capacity']}, Overlap (min): {m.get('__overlap_minutes')}, IndMatch: {m.get('__industry_match')}, LangMatch: {m.get('__language_match')}")
+    # With no mentee preferences, all mentors that pass capacity/availability should pass preference filters.
+    # Mentor 1, 3, 5 should pass. Mentor 2 fails capacity, Mentor 4 fails availability overlap based on setup.
+    assert len(filtered_mentors_no_prefs) == 3
+    assert mentor1 in filtered_mentors_no_prefs
+    assert mentor3 in filtered_mentors_no_prefs
+    assert mentor5 in filtered_mentors_no_prefs
+
 
     # Test time overlap calculation
     print("\n--- Testing Time Overlap ---")

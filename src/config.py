@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     MATCH_MIN_AVAILABILITY_OVERLAP_MINUTES: int = 30 # Minimum required availability overlap
 
     # Mentorship Program Settings
-    MENTEE_MAX_ACTIVE_MENTORS: int = 3 # Max number of ACCEPTED mentorships a mentee can have
+    MENTEE_MAX_ACTIVE_MENTORS: int = 1 # Max number of ACCEPTED mentorships a mentee can have
 
     model_config = SettingsConfigDict(
         env_file=".env",
