@@ -3,10 +3,11 @@ import logging
 from fastapi import FastAPI, Depends, HTTPException, status, Query, Request
 from fastapi.templating import Jinja2Templates
 from starlette.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, RedirectResponse # Added RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.security import OAuth2PasswordRequestForm
 from typing import List, Dict, Any, Optional, cast
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from .config import get_settings
 from . import database, models
@@ -15,6 +16,7 @@ from .matching_service import MatchingService
 from . import embeddings
 from .embeddings import load_embedding_model
 from .vector_store import faiss_index_manager
+from .security import authenticate_user, create_access_token, get_current_user, get_password_hash, verify_password
 
 # --- Configure Logging ---
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -50,13 +52,28 @@ async def startup_event():
         logger.critical(f"Critical error during startup: {e}", exc_info=True)
         # Depending on desired behavior, could sys.exit(1) here for unrecoverable errors
 
-# --- Frontend Routes ---
+# --- Frontend Routes (Additional for Auth) ---
 @app.get("/", response_class=HTMLResponse)
 async def homepage(request: Request):
     """
     Renders the homepage.
     """
     return templates.TemplateResponse("index.html", {"request": request, "title": "Mentorship Matching"})
+
+@app.get("/register", response_class=HTMLResponse) # NEW
+async def register_page(request: Request):
+    """
+    Renders the user registration page.
+    """
+    return templates.TemplateResponse("register.html", {"request": request, "title": "Register"})
+
+@app.get("/login", response_class=HTMLResponse) # NEW
+async def login_page(request: Request):
+    """
+    Renders the user login page.
+    """
+    return templates.TemplateResponse("login.html", {"request": request, "title": "Login"})
+
 
 @app.get("/signup/mentor", response_class=HTMLResponse)
 async def mentor_signup_page(request: Request):
@@ -81,7 +98,6 @@ async def mentor_dashboard_page(request: Request, mentor_id: int, db: Session = 
     if not mentor:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mentor not found.")
     
-    # We will fetch requests via JavaScript on the frontend after the page loads
     return templates.TemplateResponse(
         "mentor_dashboard.html", 
         {"request": request, "title": f"Mentor Dashboard - {mentor.id}", "mentor_id": mentor_id}
@@ -101,40 +117,110 @@ async def mentee_dashboard_page(request: Request, mentee_id: int, db: Session = 
         {"request": request, "title": f"Mentee Dashboard - {mentee.id}", "mentee_id": mentee_id}
     )
 
+# --- User Authentication API Endpoints ---
+@app.post("/register", response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED)
+async def register_user(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
+    """
+    Registers a new user with a unique username and hashed password.
+    """
+    db_user = db.query(models.User).filter(models.User.username == user.username).first()
+    if db_user:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username already registered")
+    
+    hashed_password = get_password_hash(user.password)
+    db_user = models.User(username=user.username, hashed_password=hashed_password)
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    logger.info(f"User {db_user.username} registered successfully.")
+    return db_user
 
-# --- Existing Backend API Endpoints (Copied As Is) ---
+@app.post("/token", response_model=schemas.Token)
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
+    """
+    Authenticates a user and returns an access token if credentials are valid.
+    """
+    user = authenticate_user(db, form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    logger.info(f"User {user.username} logged in successfully.")
+    return {"access_token": access_token, "token_type": "bearer"}
 
-# NEW: API endpoint to fetch all mentorship requests for a specific mentor
+@app.get("/users/me/", response_model=schemas.UserResponse)
+async def read_users_me(current_user: models.User = Depends(get_current_user)):
+    """
+    Retrieves the current authenticated user's profile.
+    Requires a valid JWT token.
+    """
+    return current_user
+
+
+# --- Profile Retrieval API Endpoints ---
+@app.get("/mentors/{mentor_id}", response_model=schemas.MentorResponse)
+async def read_mentor_profile(mentor_id: int, db: Session = Depends(database.get_db)):
+    """
+    Retrieves a full mentor profile by ID.
+    """
+    mentor = db.query(models.Mentor).filter(models.Mentor.id == mentor_id).first()
+    if not mentor:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mentor not found")
+    return mentor
+
+@app.get("/mentees/{mentee_id}", response_model=schemas.MenteeResponse)
+async def read_mentee_profile(mentee_id: int, db: Session = Depends(database.get_db)):
+    """
+    Retrieves a full mentee profile by ID.
+    """
+    mentee = db.query(models.Mentee).filter(models.Mentee.id == mentee_id).first()
+    if not mentee:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mentee not found")
+    return mentee
+
+
+# --- Existing Backend API Endpoints (Protected with get_current_user) ---
+
 @app.get("/api/mentors/{mentor_id}/requests", response_model=List[schemas.MentorshipRequestResponse])
-async def get_mentor_requests(mentor_id: int, db: Session = Depends(database.get_db)):
+async def get_mentor_requests(mentor_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     """
     Retrieves all mentorship requests associated with a specific mentor.
+    Requires authentication.
     """
+    # Later: Add authorization check: is current_user the owner of this mentor_id?
     requests = db.query(models.MentorshipRequest).filter(models.MentorshipRequest.mentor_id == mentor_id).all()
     return requests
 
-# NEW: API endpoint to fetch all mentorship requests for a specific mentee
 @app.get("/api/mentees/{mentee_id}/requests", response_model=List[schemas.MentorshipRequestResponse])
-async def get_mentee_requests(mentee_id: int, db: Session = Depends(database.get_db)):
+async def get_mentee_requests(mentee_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     """
     Retrieves all mentorship requests associated with a specific mentee.
+    Requires authentication.
     """
+    # Later: Add authorization check: is current_user the owner of this mentee_id?
     requests = db.query(models.MentorshipRequest).filter(models.MentorshipRequest.mentee_id == mentee_id).all()
     return requests
 
 
 @app.post("/mentors/", response_model=schemas.MentorResponse, status_code=status.HTTP_201_CREATED)
-async def create_mentor(mentor_data: schemas.MentorCreate, db: Session = Depends(database.get_db)):
+async def create_mentor(mentor_data: schemas.MentorCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     """
     Registers a new mentor in the system and adds their embedding to the FAISS index.
-    The database will assign the integer ID automatically.
+    Requires authentication.
     """
+    # Later: Associate this mentor profile with current_user.id
     try:
         db_mentor = models.Mentor(
             bio=mentor_data.bio,
             expertise=mentor_data.expertise,
             capacity=mentor_data.capacity,
-            current_mentees=0, # Ensure this is always 0 on creation
+            current_mentees=0,
             availability=mentor_data.availability.model_dump(mode='json') if mentor_data.availability else None,
             preferences=mentor_data.preferences.model_dump(mode='json') if mentor_data.preferences else None,
             demographics=mentor_data.demographics
@@ -169,11 +255,14 @@ async def create_mentor(mentor_data: schemas.MentorCreate, db: Session = Depends
 async def update_mentor(
     mentor_id: int,
     mentor_data: schemas.MentorUpdate,
-    db: Session = Depends(database.get_db)
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user)
 ):
     """
     Updates an existing mentor's profile and re-indexes their embedding in FAISS if text fields change.
+    Requires authentication.
     """
+    # Later: Add authorization check: is current_user the owner of this mentor_id?
     db_mentor = db.query(models.Mentor).filter(models.Mentor.id == mentor_id).first()
     if db_mentor is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mentor not found")
@@ -184,7 +273,7 @@ async def update_mentor(
     update_data = mentor_data.model_dump(exclude_unset=True)
 
     for key, value in update_data.items():
-        if key == 'availability' or key == 'preferences' or key == 'demographics': # Include demographics
+        if key == 'availability' or key == 'preferences' or key == 'demographics':
             setattr(db_mentor, key, value if value is not None else None)
         elif key in ['bio', 'expertise']:
             if getattr(db_mentor, key) != value:
@@ -217,10 +306,12 @@ async def update_mentor(
     return db_mentor
 
 @app.delete("/mentors/{mentor_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_mentor(mentor_id: int, db: Session = Depends(database.get_db)):
+async def delete_mentor(mentor_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     """
     Deletes a mentor from the system and removes their embedding from the FAISS index.
+    Requires authentication.
     """
+    # Later: Add authorization check: is current_user the owner of this mentor_id?
     db_mentor = db.query(models.Mentor).filter(models.Mentor.id == mentor_id).first()
     if db_mentor is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mentor not found")
@@ -239,18 +330,21 @@ async def delete_mentor(mentor_id: int, db: Session = Depends(database.get_db)):
 
     faiss_index_manager.remove_embedding(mentor_id)
     logger.info(f"Mentor {mentor_id} deleted from DB and FAISS index.")
-    return # 204 No Content
+    return
 
 @app.post("/match/", response_model=schemas.MatchResponse)
 async def get_matches(
-    mentee_request: schemas.MenteeMatchRequest, # Use schema model
-    db: Session = Depends(database.get_db)
+    mentee_request: schemas.MenteeMatchRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user)
 ):
     """
     Recommends top mentors for a given mentee profile.
     Accepts full mentee profile details directly and stores the mentee,
     returning the generated mentee_id for feedback.
+    Requires authentication.
     """
+    # Later: Associate this mentee profile with current_user.id
     logger.info("Received a new match request.")
     matching_service = MatchingService(db)
 
@@ -272,17 +366,17 @@ async def get_matches(
 
     if not recommendations:
         logger.warning("No recommendations found for the mentee after matching process.")
-        return schemas.MatchResponse( # Use schema model
+        return schemas.MatchResponse(
             mentee_id=generated_mentee_id,
             recommendations=[],
             message=f"No suitable mentors found based on your criteria for mentee_id={generated_mentee_id}. Please try broadening your preferences."
         )
 
     matched_mentors_response = [
-        schemas.MatchedMentor(**rec) for rec in recommendations # Use schema model
+        schemas.MatchedMentor(**rec) for rec in recommendations
     ]
 
-    return schemas.MatchResponse( # Use schema model
+    return schemas.MatchResponse(
         mentee_id=generated_mentee_id,
         recommendations=matched_mentors_response,
         message="Top mentor recommendations generated successfully."
@@ -293,12 +387,15 @@ async def pick_mentor(
     mentee_id: int,
     mentor_id: int,
     request_message: Optional[str] = Query(None, description="Optional message for the mentor."),
-    db: Session = Depends(database.get_db)
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user)
 ):
     """
     Allows a mentee to pick a mentor from the recommendations, creating a PENDING mentorship request.
     This also checks the mentee's current active mentorship count.
+    Requires authentication.
     """
+    # Later: Add authorization check: is current_user the owner of this mentee_id?
     db_mentee = db.query(models.Mentee).filter(models.Mentee.id == mentee_id).first()
     if db_mentee is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mentee not found")
@@ -347,12 +444,15 @@ async def pick_mentor(
 async def accept_mentee_request(
     mentor_id: int,
     request_id: int,
-    db: Session = Depends(database.get_db)
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user)
 ):
     """
     Allows a mentor to accept a pending mentorship request from a mentee.
     Increments mentor's current_mentees count.
+    Requires authentication.
     """
+    # Later: Add authorization check: is current_user the owner of this mentor_id?
     db_request = db.query(models.MentorshipRequest).filter(
         models.MentorshipRequest.id == request_id,
         models.MentorshipRequest.mentor_id == mentor_id
@@ -399,12 +499,15 @@ async def reject_mentee_request(
     mentor_id: int,
     request_id: int,
     rejection_reason: Optional[str] = Query(None, description="Optional reason for rejection."),
-    db: Session = Depends(database.get_db)
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user)
 ):
     """
     Allows a mentor to reject a mentorship request (either PENDING or ACCEPTED).
     If the request was ACCEPTED, it decrements the current_mentees count.
+    Requires authentication.
     """
+    # Later: Add authorization check: is current_user the owner of this mentor_id?
     db_request = db.query(models.MentorshipRequest).filter(
         models.MentorshipRequest.id == request_id,
         models.MentorshipRequest.mentor_id == mentor_id
@@ -440,12 +543,15 @@ async def reject_mentee_request(
 async def complete_mentee_request(
     mentor_id: int,
     request_id: int,
-    db: Session = Depends(database.get_db)
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user)
 ):
     """
     Allows a mentor to mark an ACCEPTED mentorship request as COMPLETED.
     Decrements mentor's current_mentees count.
+    Requires authentication.
     """
+    # Later: Add authorization check: is current_user the owner of this mentor_id?
     db_request = db.query(models.MentorshipRequest).filter(
         models.MentorshipRequest.id == request_id,
         models.MentorshipRequest.mentor_id == mentor_id
@@ -478,12 +584,15 @@ async def complete_mentee_request(
 async def cancel_mentee_request(
     mentee_id: int,
     request_id: int,
-    db: Session = Depends(database.get_db)
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user)
 ):
     """
     Allows a mentee to cancel a PENDING mentorship request.
     No impact on mentor's current_mentees as it was never accepted.
+    Requires authentication.
     """
+    # Later: Add authorization check: is current_user the owner of this mentee_id?
     db_request = db.query(models.MentorshipRequest).filter(
         models.MentorshipRequest.id == request_id,
         models.MentorshipRequest.mentee_id == mentee_id
@@ -507,12 +616,15 @@ async def cancel_mentee_request(
 async def conclude_mentorship_as_mentee(
     mentee_id: int,
     request_id: int,
-    db: Session = Depends(database.get_db)
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user)
 ):
     """
     Allows a mentee to conclude an ACCEPTED mentorship request.
     This will mark the request as COMPLETED and decrement the mentor's current_mentees count.
+    Requires authentication.
     """
+    # Later: Add authorization check: is current_user the owner of this mentee_id?
     db_request = db.query(models.MentorshipRequest).filter(
         models.MentorshipRequest.id == request_id,
         models.MentorshipRequest.mentee_id == mentee_id
@@ -543,10 +655,12 @@ async def conclude_mentorship_as_mentee(
 
 
 @app.post("/feedback/", status_code=status.HTTP_201_CREATED)
-async def submit_feedback(feedback: schemas.FeedbackCreate, db: Session = Depends(database.get_db)): # Use schema model
+async def submit_feedback(feedback: schemas.FeedbackCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     """
     Submits feedback on a mentor-mentee match.
+    Requires authentication.
     """
+    # Later: Add authorization check: is current_user the mentee submitting feedback?
     try:
         db_feedback = models.Feedback(
             mentee_id=feedback.mentee_id,

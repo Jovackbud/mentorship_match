@@ -1,10 +1,38 @@
-import uuid # For consistency in type hints if we ever revert to UUIDs; for now, int.
-from datetime import datetime
-from typing import List, Dict, Any, Optional
+import uuid
+from datetime import datetime, timedelta
+from typing import List, Dict, Any, Optional # Keep Optional
 from pydantic import BaseModel, Field
-from .models import MentorshipStatus # Import the Enum from models
+from .models import MentorshipStatus
 
-# --- Input Models ---
+# --- NEW: Authentication Schemas ---
+class UserBase(BaseModel):
+    username: str = Field(..., min_length=3, max_length=50)
+
+class UserCreate(UserBase):
+    password: str = Field(..., min_length=6)
+
+class UserLogin(UserBase):
+    password: str
+
+class UserResponse(UserBase):
+    id: int
+    is_active: bool
+    created_at: datetime
+    updated_at: Optional[datetime] # <<< ADDED Optional for updated_at here
+
+    model_config = {
+        "from_attributes": True,
+        "arbitrary_types_allowed": True
+    }
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    username: Optional[str] = None
+
+# --- Input Models (Existing) ---
 
 class AvailabilityInput(BaseModel):
     hours_per_month: Optional[int] = Field(None, description="Estimated hours available per month.")
@@ -28,7 +56,6 @@ class MentorCreate(BaseModel):
     demographics: Optional[Dict[str, Any]] = Field(None, description="Optional demographic information.")
 
 class MentorUpdate(MentorCreate):
-    # All fields become optional for an update
     bio: Optional[str] = Field(None, min_length=20, description="Brief biography or expertise summary.")
     capacity: Optional[int] = Field(None, ge=1, description="Maximum number of mentees this mentor can take.")
     expertise: Optional[str] = None
@@ -46,9 +73,8 @@ class MenteeMatchRequest(BaseModel):
     request_message: Optional[str] = Field(None, description="Optional message to be sent with mentorship requests (will be used for pick_mentor).")
 
 class MentorshipStatusUpdate(BaseModel):
-    status: MentorshipStatus # Use the Enum directly for validation
+    status: MentorshipStatus
     rejection_reason: Optional[str] = Field(None, description="Only relevant for REJECTED status.")
-    # No `completion_date` here, it's set by the server on /complete endpoint
 
 class FeedbackCreate(BaseModel):
     mentee_id: int
@@ -57,7 +83,7 @@ class FeedbackCreate(BaseModel):
     comment: Optional[str] = Field(None, description="Optional comment about the match.")
 
 
-# --- Output Models ---
+# --- Output Models (Existing + MenteeResponse) ---
 
 class MentorResponse(BaseModel):
     id: int
@@ -70,12 +96,30 @@ class MentorResponse(BaseModel):
     demographics: Optional[Dict[str, Any]]
     is_active: bool
     created_at: datetime
-    updated_at: datetime
+    updated_at: Optional[datetime] # <<< ADDED Optional for updated_at here
 
     model_config = {
         "from_attributes": True,
         "arbitrary_types_allowed": True
     }
+
+# MenteeResponse model
+class MenteeResponse(BaseModel):
+    id: int
+    bio: str
+    goals: Optional[str]
+    preferences: Optional[Dict[str, Any]]
+    availability: Optional[Dict[str, Any]]
+    mentorship_style: Optional[str]
+    is_active: bool
+    created_at: datetime
+    updated_at: Optional[datetime] # <<< ADDED Optional for updated_at here
+
+    model_config = {
+        "from_attributes": True,
+        "arbitrary_types_allowed": True
+    }
+
 
 class MatchedMentor(BaseModel):
     mentor_id: int
@@ -93,12 +137,12 @@ class MentorshipRequestResponse(BaseModel):
     id: int
     mentee_id: int
     mentor_id: int
-    status: MentorshipStatus # Use the Enum for response
+    status: MentorshipStatus
     request_message: Optional[str]
     request_date: datetime
     acceptance_date: Optional[datetime]
     rejection_reason: Optional[str]
-    completed_date: Optional[datetime] # New field for completed requests
+    completed_date: Optional[datetime]
 
     model_config = {
         "from_attributes": True,

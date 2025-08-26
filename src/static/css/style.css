@@ -101,3 +101,39 @@
 .cards-container article {
     margin-bottom: var(--pico-spacing); /* Space between individual cards */
 }
+/* Custom styles for success/error messages (Auth-specific) */
+#register-response-message[data-variant="success"],
+#login-response-message[data-variant="success"] {
+    color: var(--pico-color-success);
+    background-color: var(--pico-form-element-background-color);
+    border-left: 5px solid var(--pico-color-success);
+    padding: var(--pico-spacing);
+    margin-top: var(--pico-spacing);
+    font-weight: bold;
+}
+
+#register-response-message[data-variant="error"],
+#login-response-message[data-variant="error"] {
+    color: var(--pico-color-danger);
+    background-color: var(--pico-form-element-background-color);
+    border-left: 5px solid var(--pico-color-danger);
+    padding: var(--pico-spacing);
+    margin-top: var(--pico-spacing);
+    font-weight: bold;
+}
+
+/* Ensure list items for auth in nav are not hidden by default if present */
+#main-nav-links li {
+    display: list-item !important; /* Override potential hidden by other CSS, manage visibility with JS */
+}
+
+/* Fix for black dots in navigation */
+#main-nav-links {
+    list-style: none; /* Remove default bullet points */
+    padding-left: 0;  /* Remove default left padding */
+}
+
+/* Ensure list items for auth in nav are not hidden by default if present */
+#main-nav-links li {
+    display: list-item !important; /* Override potential hidden by other CSS, manage visibility with JS */
+}

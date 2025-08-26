@@ -1,4 +1,3 @@
-# src/config.py
 import os
 from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -32,6 +31,11 @@ class Settings(BaseSettings):
 
     # Mentorship Program Settings
     MENTEE_MAX_ACTIVE_MENTORS: int = 1 # Max number of ACCEPTED mentorships a mentee can have
+
+    # --- NEW: JWT Settings ---
+    SECRET_KEY: str # Will be read from .env
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     model_config = SettingsConfigDict(
         env_file=".env",

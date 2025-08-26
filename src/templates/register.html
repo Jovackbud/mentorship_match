@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <article>
+        <h1>Register for MentorMatch</h1>
+        <p class="lead">Create your account to start your mentorship journey.</p>
+
+        <form id="register-form">
+            <label for="username">
+                Username
+                <input type="text" id="username" name="username" placeholder="Choose a username" required minlength="3">
+                <small>Your username must be at least 3 characters long.</small>
+            </label>
+
+            <label for="password">
+                Password
+                <input type="password" id="password" name="password" placeholder="Choose a strong password" required minlength="6">
+                <small>Your password must be at least 6 characters long.</small>
+            </label>
+
+            <label for="confirm-password">
+                Confirm Password
+                <input type="password" id="confirm-password" name="confirm_password" placeholder="Re-enter your password" required>
+            </label>
+            
+            <button type="submit">Register</button>
+            <p id="register-response-message" aria-live="polite" style="margin-top: 1rem; display: none;"></p>
+            <p>Already have an account? <a href="/login">Login here</a>.</p>
+        </form>
+    </article>
+{% endblock %}

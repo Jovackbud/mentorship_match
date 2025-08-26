@@ -4,10 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title }} - Mentorship Platform</title>
-    <!-- Pico.css CDN (or local link if downloaded) -->
-    <!-- We're linking to the local file in src/static/css/pico.min.css -->
     <link rel="stylesheet" href="/static/css/pico.min.css">
-    <!-- Optional: Your custom CSS -->
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
@@ -15,11 +12,14 @@
         <ul>
             <li><strong>MentorMatch</strong></li>
         </ul>
-        <ul>
+        <ul id="main-nav-links">
             <li><a href="/" class="secondary">Home</a></li>
             <li><a href="/signup/mentor" class="secondary">Become a Mentor</a></li>
             <li><a href="/signup/mentee" class="secondary">Find a Mentor</a></li>
+            <li id="register-nav-item"><a href="/register" class="secondary">Register</a></li> {# ADDED ID #}
+            <li id="login-nav-item"><a href="/login" class="secondary">Login</a></li>         {# ADDED ID #}
             <li><a href="/docs" class="secondary">API Docs</a></li>
+            <li id="logout-nav-item" style="display: none;"><a href="#" id="logout-btn" role="button" class="contrast">Logout</a></li> {# ADDED ID #}
         </ul>
     </nav>
     <main class="container">
@@ -28,7 +28,6 @@
     <footer class="container-fluid">
         <small>Powered by FastAPI & Pico.css | &copy; 2025 MentorMatch</small>
     </footer>
-    <!-- Optional: Your custom JS -->
     <script src="/static/js/main.js"></script>
 </body>
 </html>

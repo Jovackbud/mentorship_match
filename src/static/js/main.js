@@ -1,7 +1,20 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- Common Elements & Helpers ---
+    const mainNavLinks = document.getElementById('main-nav-links');
+    const registerNavItem = document.getElementById('register-nav-item'); // NEW
+    const loginNavItem = document.getElementById('login-nav-item');       // NEW
+    const logoutNavItem = document.getElementById('logout-nav-item');     // NEW
+    const logoutBtn = document.getElementById('logout-btn');
+
+    // Forms
+    const registerForm = document.getElementById('register-form');
+    const loginForm = document.getElementById('login-form');
     const mentorSignupForm = document.getElementById('mentor-signup-form');
     const menteeSignupForm = document.getElementById('mentee-signup-form');
+
+    // Response Messages for Forms
+    const registerResponseMessage = document.getElementById('register-response-message');
+    const loginResponseMessage = document.getElementById('login-response-message');
     const mentorResponseMessage = document.getElementById('mentor-response-message');
     const menteeResponseMessage = document.getElementById('mentee-response-message');
 
@@ -15,33 +28,71 @@ document.addEventListener('DOMContentLoaded', () => {
     const confirmPickMentorBtn = document.getElementById('confirm-pick-mentor');
 
     // Mentor Dashboard Specifics (already existing)
-    const mentorDashboardRequestsSection = document.getElementById('mentorship-requests-section'); // Renamed for clarity, was 'mentorDashboardPage'
+    const mentorDashboardProfileSummary = document.getElementById('mentor-profile-summary');
+    const mentorDashboardRequestsSection = document.getElementById('mentorship-requests-section');
     const mentorRequestsList = document.getElementById('mentorship-requests-list');
     const requestsMessage = document.getElementById('requests-message');
     const rejectModal = document.getElementById('reject-modal');
     const rejectionReasonInput = document.getElementById('rejection-reason');
     const confirmRejectBtn = document.getElementById('confirm-reject-btn');
 
-    // NEW: Mentee Dashboard Specifics
-    const menteeDashboardRequestsSection = document.getElementById('mentee-mentorship-requests-list');
+    // Mentee Dashboard Specifics (already existing)
+    const menteeDashboardProfileSummary = document.getElementById('mentee-profile-summary');
+    const menteeDashboardRequestsList = document.getElementById('mentee-mentorship-requests-list');
     const menteeRequestsMessage = document.getElementById('mentee-requests-message');
     
-    let currentMenteeId = null; // Stored from signup form
-    let selectedMentorId = null; // Stored from mentee recommendations pick
-    let currentMentorDashboardId = null; // Stored from mentor dashboard URL
-    let currentMenteeDashboardId = null; // NEW: Stored from mentee dashboard URL
-    let currentRequestIdForAction = null; // Stored when modal/action is initiated
+    let currentMenteeId = null;
+    let selectedMentorId = null;
+    let currentMentorDashboardId = null;
+    let currentMenteeDashboardId = null;
+    let currentRequestIdForAction = null;
+    let currentUsername = null;
+    let currentUserProfileId = null;
 
-    // Helper function to show messages for a specific message element
+    // --- Authentication & Navigation Helpers ---
+
+    function isAuthenticated() {
+        const token = localStorage.getItem('access_token');
+        console.log('isAuthenticated() check: token in localStorage is', token ? 'present' : 'absent');
+        return token !== null;
+    }
+
+    function updateNavLinks() {
+        console.log('updateNavLinks() called. Is authenticated:', isAuthenticated());
+        if (isAuthenticated()) {
+            if (registerNavItem) registerNavItem.style.display = 'none';
+            if (loginNavItem) loginNavItem.style.display = 'none';
+            if (logoutNavItem) logoutNavItem.style.display = 'list-item';
+            
+            // Placeholder for personalized dashboard links (e.g., if we link users to mentors/mentees)
+        } else {
+            if (registerNavItem) registerNavItem.style.display = 'list-item';
+            if (loginNavItem) loginNavItem.style.display = 'list-item';
+            if (logoutNavItem) logoutNavItem.style.display = 'none';
+        }
+    }
+
+    async function logout() {
+        localStorage.removeItem('access_token');
+        currentUsername = null;
+        currentUserProfileId = null;
+        updateNavLinks();
+        console.log('Logged out. Redirecting to login.');
+        window.location.href = '/login';
+    }
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', logout);
+    }
+
+    // --- Generic Message Handlers ---
     function showFormMessage(messageElement, message, type) {
         if (messageElement) {
-            messageElement.innerHTML = message; // Use innerHTML for links
+            messageElement.innerHTML = message;
             messageElement.setAttribute('data-variant', type);
             messageElement.style.display = 'block';
         }
     }
 
-    // Helper function to hide messages for a specific message element
     function hideFormMessage(messageElement) {
         if (messageElement) {
             messageElement.innerHTML = '';
@@ -53,7 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Modal Toggle Helpers (Generic for Pico.css dialogs) ---
     function toggleDialog(dialogElement, event) {
         if (!dialogElement) return;
-        if (event) event.preventDefault(); // Prevent default link behavior if an event object is passed
+        if (event) event.preventDefault();
         if (dialogElement.hasAttribute('open')) {
             dialogElement.removeAttribute('open');
             document.body.style.overflow = '';
@@ -63,18 +114,140 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Specific modal toggles for clarity and global access
     window.togglePickMentorModal = (event) => toggleDialog(pickMentorModal, event);
     window.toggleRejectModal = (event) => toggleDialog(rejectModal, event);
 
+    // --- Centralized API Call Helper ---
+    async function authorizedFetch(url, options = {}) {
+        const token = localStorage.getItem('access_token');
+        const headers = {
+            ...options.headers,
+            'Content-Type': 'application/json',
+        };
 
-    // --- Mentor Signup Form Logic (Existing, but added dashboard link) ---
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        } else {
+            // If a token is required but not present, redirect to login
+            // Note: This only applies to APIs that are explicitly protected.
+            // Public endpoints (like GET /mentors/{id}) do not use authorizedFetch
+            // directly but might be called indirectly for populating associated info.
+            if (!url.startsWith('/mentors/') && !url.startsWith('/mentees/')) { // Allow public profile fetches
+                console.warn('authorizedFetch: No token found. Attempting to access protected resource.');
+                logout(); // Redirect to login
+                throw new Error('Unauthorized: No access token found.');
+            }
+        }
+
+        const response = await fetch(url, { ...options, headers });
+
+        if (response.status === 401) {
+            console.warn('Unauthorized access: Token might be expired or invalid. Redirecting to login.');
+            logout();
+            throw new Error('Unauthorized: API responded with 401.'); // Prevent further processing
+        }
+        return response;
+    }
+
+
+    // --- Register Form Logic ---
+    if (registerForm) {
+        hideFormMessage(registerResponseMessage);
+        registerForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            hideFormMessage(registerResponseMessage);
+
+            const formData = new FormData(registerForm);
+            const username = formData.get('username');
+            const password = formData.get('password');
+            const confirmPassword = formData.get('confirm_password');
+
+            if (password !== confirmPassword) {
+                showFormMessage(registerResponseMessage, 'Passwords do not match.', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password }),
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showFormMessage(registerResponseMessage, `Registration successful for ${result.username}! Please <a href="/login">login</a>.`, 'success');
+                    registerForm.reset();
+                } else {
+                    showFormMessage(registerResponseMessage, `Error: ${result.detail || 'Could not register.'}`, 'error');
+                    console.error('API Error:', result);
+                }
+            } catch (error) {
+                showFormMessage(registerResponseMessage, 'Network error or unable to connect to server.', 'error');
+                console.error('Fetch error:', error);
+            }
+        });
+    }
+
+    // --- Login Form Logic ---
+    if (loginForm) {
+        hideFormMessage(loginResponseMessage);
+        loginForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            hideFormMessage(loginResponseMessage);
+
+            const formData = new FormData(loginForm);
+            const username = formData.get('username');
+            const password = formData.get('password');
+
+            const formBody = new URLSearchParams();
+            formBody.append('username', username);
+            formBody.append('password', password);
+
+            try {
+                const response = await fetch('/token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: formBody.toString(),
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    localStorage.setItem('access_token', result.access_token);
+                    currentUsername = username;
+                    updateNavLinks();
+                    showFormMessage(loginResponseMessage, `Login successful! Welcome, ${username}. Redirecting...`, 'success');
+                    window.location.href = '/';
+                } else {
+                    showFormMessage(loginResponseMessage, `Error: ${result.detail || 'Could not log in.'}`, 'error');
+                    console.error('API Error:', result);
+                }
+            } catch (error) {
+                showFormMessage(loginResponseMessage, 'Network error or unable to connect to server.', 'error');
+                console.error('Fetch error:', error);
+            }
+        });
+    }
+
+
+    // --- Mentor Signup Form Logic (UPDATED to use authorizedFetch) ---
     if (mentorSignupForm) {
         hideFormMessage(mentorResponseMessage);
 
         mentorSignupForm.addEventListener('submit', async (event) => {
             event.preventDefault();
             hideFormMessage(mentorResponseMessage);
+
+            if (!isAuthenticated()) {
+                showFormMessage(mentorResponseMessage, 'You must be logged in to register as a mentor. Please <a href="/login">Login</a> or <a href="/register">Register</a>.', 'error');
+                return;
+            }
 
             const formData = new FormData(mentorSignupForm);
             const data = {};
@@ -117,11 +290,8 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('Sending mentor data:', data);
 
             try {
-                const response = await fetch('/mentors/', {
+                const response = await authorizedFetch('/mentors/', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
                     body: JSON.stringify(data),
                 });
 
@@ -141,7 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Mentee Signup Form Logic (Existing, but added dashboard link) ---
+    // --- Mentee Signup Form Logic (UPDATED to use authorizedFetch) ---
     if (menteeSignupForm) {
         hideFormMessage(menteeResponseMessage);
 
@@ -150,6 +320,11 @@ document.addEventListener('DOMContentLoaded', () => {
             hideFormMessage(menteeResponseMessage);
             recommendationsSection.style.display = 'none';
             mentorRecommendationsDiv.innerHTML = '';
+
+            if (!isAuthenticated()) {
+                showFormMessage(menteeResponseMessage, 'You must be logged in to find a mentor. Please <a href="/login">Login</a> or <a href="/register">Register</a>.', 'error');
+                return;
+            }
 
             const formData = new FormData(menteeSignupForm);
             const data = {};
@@ -179,11 +354,8 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('Sending mentee data for matching:', data);
 
             try {
-                const response = await fetch('/match/', {
+                const response = await authorizedFetch('/match/', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
                     body: JSON.stringify(data),
                 });
 
@@ -204,7 +376,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.error('API Error:', result);
                 }
             } catch (error) {
-                    showFormMessage(menteeResponseMessage, 'Network error or unable to connect to server.', 'error');
+                showFormMessage(menteeResponseMessage, 'Network error or unable to connect to server.', 'error');
                 console.error('Fetch error:', error);
             }
         });
@@ -244,7 +416,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Logic for Confirming Mentor Pick in Modal ---
+    // --- Logic for Confirming Mentor Pick in Modal (UPDATED to use authorizedFetch) ---
     if (confirmPickMentorBtn) {
         confirmPickMentorBtn.addEventListener('click', async (event) => {
             if (!currentMenteeId || !selectedMentorId) {
@@ -258,11 +430,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const queryParams = message ? `?request_message=${encodeURIComponent(message)}` : '';
 
             try {
-                const response = await fetch(url + queryParams, {
+                const response = await authorizedFetch(url + queryParams, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
                 });
 
                 const result = await response.json();
@@ -282,26 +451,44 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Mentor Dashboard Logic (Existing) ---
+    // --- Mentor Dashboard Logic (UPDATED to use authorizedFetch) ---
     const mentorPathSegments = window.location.pathname.split('/');
     if (mentorPathSegments[1] === 'dashboard' && mentorPathSegments[2] === 'mentor' && mentorPathSegments[3]) {
         currentMentorDashboardId = parseInt(mentorPathSegments[3], 10);
         if (!isNaN(currentMentorDashboardId)) {
-            // fetchMentorDetails(currentMentorDashboardId); // This API endpoint doesn't exist yet, uncomment when it does.
+            fetchMentorDetails(currentMentorDashboardId);
             fetchMentorshipRequests(currentMentorDashboardId);
         } else {
             showFormMessage(requestsMessage, 'Invalid mentor ID in URL.', 'error');
         }
     }
 
-    // Placeholder for fetching mentor details - needs API endpoint: GET /mentors/{id}
     async function fetchMentorDetails(mentorId) {
-        // This function would fetch detailed mentor profile from an API endpoint like /mentors/{mentor_id}
-        // For now, it's a placeholder.
         const profileSummaryDiv = document.getElementById('mentor-profile-summary');
-        if (profileSummaryDiv) {
-             // You'd make an API call here and populate the fields
-            // For now, it just shows the ID from the template.
+        if (!profileSummaryDiv) return;
+
+        try {
+            // NOTE: This endpoint is public, so it does not use authorizedFetch
+            const response = await fetch(`/mentors/${mentorId}`, { method: 'GET' });
+            if (response.ok) {
+                const mentor = await response.json();
+                profileSummaryDiv.innerHTML = `
+                    <h2>Your Profile</h2>
+                    <p><strong>Mentor ID:</strong> ${mentor.id}</p>
+                    <p><strong>Bio:</strong> ${mentor.bio}</p>
+                    <p><strong>Expertise:</strong> ${mentor.expertise || 'Not specified'}</p>
+                    <p><strong>Capacity:</strong> ${mentor.current_mentees} / ${mentor.capacity} active mentees</p>
+                    <p><strong>Availability:</strong> ${mentor.availability?.hours_per_month || 'Not specified'} hours/month</p>
+                    <p><strong>Preferences:</strong> Industries: ${(mentor.preferences?.industries || []).join(', ') || 'Any'}, Languages: ${(mentor.preferences?.languages || []).join(', ') || 'Any'}</p>
+                    ${mentor.demographics ? `<p><strong>Demographics:</strong> ${JSON.stringify(mentor.demographics)}</p>` : ''}
+                `;
+            } else {
+                profileSummaryDiv.innerHTML = `<p>Failed to load mentor profile details: ${response.statusText}. Please ensure you are logged in and authorized to view this profile.</p>`;
+                console.error(`Failed to fetch mentor details for ID ${mentorId}:`, response.status, await response.text());
+            }
+        } catch (error) {
+            profileSummaryDiv.innerHTML = `<p>Error loading mentor profile details.</p>`;
+            console.error(`Network error fetching mentor details for ID ${mentorId}:`, error);
         }
     }
 
@@ -311,14 +498,14 @@ document.addEventListener('DOMContentLoaded', () => {
         mentorRequestsList.innerHTML = '<p>Loading your requests...</p>';
 
         try {
-            const response = await fetch(`/api/mentors/${mentorId}/requests`);
+            const response = await authorizedFetch(`/api/mentors/${mentorId}/requests`, { method: 'GET' });
             const requests = await response.json();
 
             if (response.ok) {
                 if (requests.length === 0) {
                     mentorRequestsList.innerHTML = '<p>No mentorship requests found.</p>';
                 } else {
-                    renderMentorMentorshipRequests(requests); // Changed function name
+                    renderMentorMentorshipRequests(requests);
                 }
             } else {
                 showFormMessage(requestsMessage, `Error fetching requests: ${requests.detail || 'Unknown error.'}`, 'error');
@@ -332,7 +519,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function renderMentorMentorshipRequests(requests) { // Changed function name
+    function renderMentorMentorshipRequests(requests) {
         mentorRequestsList.innerHTML = '';
 
         let pendingRequests = requests.filter(r => r.status === 'PENDING');
@@ -344,7 +531,7 @@ document.addEventListener('DOMContentLoaded', () => {
         activeRequests.sort(sortByRequestDateDesc);
         historicalRequests.sort(sortByRequestDateDesc);
 
-        function createRequestCategorySection(title, requestsArray, type, isMentorView = true) {
+        function createRequestCategorySection(title, requestsArray, type) {
             if (requestsArray.length === 0) return null;
 
             const categorySection = document.createElement('section');
@@ -357,7 +544,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const cardsContainer = document.createElement('div');
             cardsContainer.className = 'cards-container';
             requestsArray.forEach(request => {
-                cardsContainer.appendChild(createMentorRequestCard(request, type)); // Use mentor-specific card
+                cardsContainer.appendChild(createMentorRequestCard(request, type));
             });
             categorySection.appendChild(cardsContainer);
             return categorySection;
@@ -376,10 +563,9 @@ document.addEventListener('DOMContentLoaded', () => {
             mentorRequestsList.innerHTML = '<p>No mentorship requests found.</p>';
         }
 
-        attachMentorRequestButtonListeners(); // Changed function name
+        attachMentorRequestButtonListeners();
     }
 
-    // Renamed function to be mentor-specific
     function createMentorRequestCard(request, type) {
         const card = document.createElement('article');
         card.setAttribute('data-request-status', request.status);
@@ -404,7 +590,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <button class="request-action-btn" data-action="complete" data-request-id="${request.id}" data-mentor-id="${currentMentorDashboardId}">Complete Mentorship</button>
                 <button class="request-action-btn secondary" data-action="reject" data-request-id="${request.id}" data-mentor-id="${currentMentorDashboardId}">End Mentorship (Reject)</button>
             `;
-        } // No actions for CANCELLED or COMPLETED on mentor side
+        }
 
         card.innerHTML = `
             ${cardContent}
@@ -413,7 +599,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return card;
     }
 
-    // Renamed function to be mentor-specific
     function attachMentorRequestButtonListeners() {
         document.querySelectorAll('.request-action-btn').forEach(button => {
             button.addEventListener('click', async (event) => {
@@ -451,11 +636,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            const response = await fetch(endpoint + queryParams, {
+            const response = await authorizedFetch(endpoint + queryParams, {
                 method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
             });
             const result = await response.json();
 
@@ -482,57 +664,75 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // --- NEW: Mentee Dashboard Logic ---
+    // --- Mentee Dashboard Logic (UPDATED to use authorizedFetch) ---
     const menteePathSegments = window.location.pathname.split('/');
     if (menteePathSegments[1] === 'dashboard' && menteePathSegments[2] === 'mentee' && menteePathSegments[3]) {
         currentMenteeDashboardId = parseInt(menteePathSegments[3], 10);
         if (!isNaN(currentMenteeDashboardId)) {
-            // fetchMenteeDetails(currentMenteeDashboardId); // This API endpoint doesn't exist yet
+            fetchMenteeDetails(currentMenteeDashboardId);
             fetchMenteeMentorshipRequests(currentMenteeDashboardId);
         } else {
             showFormMessage(menteeRequestsMessage, 'Invalid mentee ID in URL.', 'error');
         }
     }
 
-    // Placeholder for fetching mentee details - needs API endpoint: GET /mentees/{id}
     async function fetchMenteeDetails(menteeId) {
-        // This function would fetch detailed mentee profile from an API endpoint like /mentees/{mentee_id}
-        // For now, it's a placeholder.
         const profileSummaryDiv = document.getElementById('mentee-profile-summary');
-        if (profileSummaryDiv) {
-             // You'd make an API call here and populate the fields
-            // For now, it just shows the ID from the template.
+        if (!profileSummaryDiv) return;
+
+        try {
+            // NOTE: This endpoint is public, so it does not use authorizedFetch
+            const response = await fetch(`/mentees/${menteeId}`, { method: 'GET' });
+            if (response.ok) {
+                const mentee = await response.json();
+                profileSummaryDiv.innerHTML = `
+                    <h2>Your Profile</h2>
+                    <p><strong>Mentee ID:</strong> ${mentee.id}</p>
+                    <p><strong>Bio:</strong> ${mentee.bio}</p>
+                    <p><strong>Goals:</strong> ${mentee.goals || 'Not specified'}</p>
+                    <p><strong>Mentorship Style:</strong> ${mentee.mentorship_style || 'Not specified'}</p>
+                    <p><strong>Availability:</strong> ${mentee.availability?.hours_per_month || 'Not specified'} hours/month</p>
+                    <p><strong>Preferences:</strong> Industries: ${(mentee.preferences?.industries || []).join(', ') || 'Any'}, Languages: ${(mentee.preferences?.languages || []).join(', ') || 'Any'}</p>
+                `;
+            } else {
+                profileSummaryDiv.innerHTML = `<p>Failed to load mentee profile details: ${response.statusText}. Please ensure you are logged in and authorized to view this profile.</p>`;
+                console.error(`Failed to fetch mentee details for ID ${menteeId}:`, response.status, await response.text());
+            }
+        } catch (error) {
+            profileSummaryDiv.innerHTML = `<p>Error loading mentee profile details.</p>`;
+            console.error(`Network error fetching mentee details for ID ${menteeId}:`, error);
         }
     }
 
+
     async function fetchMenteeMentorshipRequests(menteeId) {
         hideFormMessage(menteeRequestsMessage);
-        menteeDashboardRequestsSection.innerHTML = '<p>Loading your requests...</p>';
+        menteeDashboardRequestsList.innerHTML = '<p>Loading your requests...</p>';
 
         try {
-            const response = await fetch(`/api/mentees/${menteeId}/requests`);
+            const response = await authorizedFetch(`/api/mentees/${menteeId}/requests`, { method: 'GET' });
             const requests = await response.json();
 
             if (response.ok) {
                 if (requests.length === 0) {
-                    menteeDashboardRequestsSection.innerHTML = '<p>No mentorship requests found.</p>';
+                    menteeDashboardRequestsList.innerHTML = '<p>No mentorship requests found.</p>';
                 } else {
                     renderMenteeMentorshipRequests(requests);
                 }
             } else {
                 showFormMessage(menteeRequestsMessage, `Error fetching requests: ${requests.detail || 'Unknown error.'}`, 'error');
-                menteeDashboardRequestsSection.innerHTML = '<p>Failed to load requests.</p>';
+                menteeDashboardRequestsList.innerHTML = '<p>Failed to load requests.</p>';
                 console.error('API Error fetching mentee requests:', requests);
             }
         } catch (error) {
             showFormMessage(menteeRequestsMessage, 'Network error or unable to connect to server.', 'error');
-            menteeDashboardRequestsSection.innerHTML = '<p>Failed to load requests due to network error.</p>';
+            menteeDashboardRequestsList.innerHTML = '<p>Failed to load requests due to network error.</p>';
             console.error('Fetch error fetching mentee requests:', error);
         }
     }
 
     function renderMenteeMentorshipRequests(requests) {
-        menteeDashboardRequestsSection.innerHTML = '';
+        menteeDashboardRequestsList.innerHTML = '';
 
         let pendingRequests = requests.filter(r => r.status === 'PENDING');
         let activeRequests = requests.filter(r => r.status === 'ACCEPTED');
@@ -556,29 +756,28 @@ document.addEventListener('DOMContentLoaded', () => {
             const cardsContainer = document.createElement('div');
             cardsContainer.className = 'cards-container';
             requestsArray.forEach(request => {
-                cardsContainer.appendChild(createMenteeRequestCard(request, type)); // Use mentee-specific card
+                cardsContainer.appendChild(createMenteeRequestCard(request, type));
             });
             categorySection.appendChild(cardsContainer);
             return categorySection;
         }
 
         const pendingSection = createRequestCategorySection('Pending Requests', pendingRequests, 'pending');
-        if (pendingSection) menteeDashboardRequestsSection.appendChild(pendingSection);
+        if (pendingSection) menteeDashboardRequestsList.appendChild(pendingSection);
 
         const activeSection = createRequestCategorySection('Active Mentorships', activeRequests, 'active');
-        if (activeSection) menteeDashboardRequestsSection.appendChild(activeSection);
+        if (activeSection) menteeDashboardRequestsList.appendChild(activeSection);
 
         const historicalSection = createRequestCategorySection('Historical Journeys', historicalRequests, 'historical');
-        if (historicalSection) menteeDashboardRequestsSection.appendChild(historicalSection);
+        if (historicalSection) menteeDashboardRequestsList.appendChild(historicalSection);
 
         if (pendingRequests.length === 0 && activeRequests.length === 0 && historicalRequests.length === 0) {
-            menteeDashboardRequestsSection.innerHTML = '<p>No mentorship requests found.</p>';
+            menteeDashboardRequestsList.innerHTML = '<p>No mentorship requests found.</p>';
         }
 
         attachMenteeRequestButtonListeners();
     }
 
-    // NEW: Function to create a mentee-specific request card
     function createMenteeRequestCard(request, type) {
         const card = document.createElement('article');
         card.setAttribute('data-request-status', request.status);
@@ -601,7 +800,7 @@ document.addEventListener('DOMContentLoaded', () => {
             footerButtons = `
                 <button class="mentee-request-action-btn" data-action="conclude" data-request-id="${request.id}" data-mentee-id="${currentMenteeDashboardId}">Conclude Mentorship</button>
             `;
-        } // No actions for REJECTED, CANCELLED, COMPLETED on mentee side (just view)
+        }
 
         card.innerHTML = `
             ${cardContent}
@@ -610,7 +809,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return card;
     }
 
-    // NEW: Function to attach listeners for mentee action buttons
     function attachMenteeRequestButtonListeners() {
         document.querySelectorAll('.mentee-request-action-btn').forEach(button => {
             button.addEventListener('click', async (event) => {
@@ -623,7 +821,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // NEW: Function to perform mentee actions (cancel, conclude)
     async function performMenteeAction(menteeId, requestId, action) {
         let endpoint = '';
         let method = 'PUT';
@@ -638,25 +835,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            const response = await fetch(endpoint, {
+            const response = await authorizedFetch(endpoint, {
                 method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
             });
             const result = await response.json();
 
             if (response.ok) {
                 showFormMessage(menteeRequestsMessage, `Request ${requestId} ${action.toUpperCase()}ED successfully!`, 'success');
-                fetchMenteeMentorshipRequests(menteeId); // Refresh the list
+                fetchMenteeMentorshipRequests(menteeId);
             } else {
                 showFormMessage(menteeRequestsMessage, `Error performing ${action} for request ${requestId}: ${result.detail || 'Unknown error.'}`, 'error');
                 console.error(`API Error for ${action} request ${requestId}:`, result);
             }
         } catch (error) {
-            showFormMessage(menteeRequestsMessage, `Network error during ${action} action for request ${requestId}.`, 'error');
+            showFormMessage(menteeRequestsMessage, 'Network error or unable to connect to server.', 'error');
             console.error(`Fetch error for ${action} request ${requestId}:`, error);
         }
     }
 
+    // --- Initial setup on page load ---
+    updateNavLinks(); // Update navigation based on current login status
 });
