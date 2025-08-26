@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <article>
+        <h1>Welcome to MentorMatch!</h1>
+        <p class="lead">Your personalized career-focused mentorship platform. Find the perfect mentor or mentee to accelerate career growth.</p>
+        <div class="grid">
+            <div>
+                <h2>Are you a Mentor?</h2>
+                <p>Share your expertise and guide aspiring professionals. Expand your network and make a real impact.</p>
+                <a href="/signup/mentor" role="button">Sign Up as a Mentor</a>
+            </div>
+            <div>
+                <h2>Are you a Mentee?</h2>
+                <p>Discover experienced mentors tailored to your career goals. Get personalized advice and unlock your potential.</p>
+                <a href="/signup/mentee" role="button" class="secondary">Find Your Mentor</a>
+            </div>
+        </div>
+    </article>
+    <section>
+        <h2>How it Works</h2>
+        <div class="grid">
+            <div>
+                <h3>1. Create Your Profile</h3>
+                <p>Tell us about your background, expertise, goals, and availability. Our smart system will use this to find the best matches.</p>
+            </div>
+            <div>
+                <h3>2. Get Matched</h3>
+                <p>Leveraging lightweight neural matching, we'll recommend mentors or mentees with high semantic and practical compatibility.</p>
+            </div>
+            <div>
+                <h3>3. Start Your Journey</h3>
+                <p>Connect, collaborate, and grow! Our platform facilitates meaningful mentorship relationships.</p>
+            </div>
+        </div>
+    </section>
+{% endblock %}

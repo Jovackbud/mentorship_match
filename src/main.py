@@ -1,13 +1,16 @@
 import os
 import logging
-from fastapi import FastAPI, Depends, HTTPException, status, Query
+from fastapi import FastAPI, Depends, HTTPException, status, Query, Request
+from fastapi.templating import Jinja2Templates
+from starlette.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse, RedirectResponse # Added RedirectResponse
 from typing import List, Dict, Any, Optional, cast
 from sqlalchemy.orm import Session
 from datetime import datetime
 
 from .config import get_settings
 from . import database, models
-from . import schemas # <--- IMPORT SCHEMAS
+from . import schemas
 from .matching_service import MatchingService
 from . import embeddings
 from .embeddings import load_embedding_model
@@ -24,6 +27,10 @@ app = FastAPI(
     description="A lightweight neural-matching pipeline for mentor-mentee recommendations.",
     version="1.0.0",
 )
+
+# --- Frontend Setup ---
+app.mount("/static", StaticFiles(directory="src/static"), name="static")
+templates = Jinja2Templates(directory="src/templates")
 
 # --- API Endpoints ---
 
@@ -43,6 +50,79 @@ async def startup_event():
         logger.critical(f"Critical error during startup: {e}", exc_info=True)
         # Depending on desired behavior, could sys.exit(1) here for unrecoverable errors
 
+# --- Frontend Routes ---
+@app.get("/", response_class=HTMLResponse)
+async def homepage(request: Request):
+    """
+    Renders the homepage.
+    """
+    return templates.TemplateResponse("index.html", {"request": request, "title": "Mentorship Matching"})
+
+@app.get("/signup/mentor", response_class=HTMLResponse)
+async def mentor_signup_page(request: Request):
+    """
+    Renders the mentor signup page.
+    """
+    return templates.TemplateResponse("mentor_signup.html", {"request": request, "title": "Mentor Signup"})
+
+@app.get("/signup/mentee", response_class=HTMLResponse)
+async def mentee_signup_page(request: Request):
+    """
+    Renders the mentee signup page.
+    """
+    return templates.TemplateResponse("mentee_signup.html", {"request": request, "title": "Mentee Signup"})
+
+@app.get("/dashboard/mentor/{mentor_id}", response_class=HTMLResponse)
+async def mentor_dashboard_page(request: Request, mentor_id: int, db: Session = Depends(database.get_db)):
+    """
+    Renders the mentor dashboard page for a specific mentor.
+    """
+    mentor = db.query(models.Mentor).filter(models.Mentor.id == mentor_id).first()
+    if not mentor:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mentor not found.")
+    
+    # We will fetch requests via JavaScript on the frontend after the page loads
+    return templates.TemplateResponse(
+        "mentor_dashboard.html", 
+        {"request": request, "title": f"Mentor Dashboard - {mentor.id}", "mentor_id": mentor_id}
+    )
+
+@app.get("/dashboard/mentee/{mentee_id}", response_class=HTMLResponse)
+async def mentee_dashboard_page(request: Request, mentee_id: int, db: Session = Depends(database.get_db)):
+    """
+    Renders the mentee dashboard page for a specific mentee.
+    """
+    mentee = db.query(models.Mentee).filter(models.Mentee.id == mentee_id).first()
+    if not mentee:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mentee not found.")
+    
+    return templates.TemplateResponse(
+        "mentee_dashboard.html", 
+        {"request": request, "title": f"Mentee Dashboard - {mentee.id}", "mentee_id": mentee_id}
+    )
+
+
+# --- Existing Backend API Endpoints (Copied As Is) ---
+
+# NEW: API endpoint to fetch all mentorship requests for a specific mentor
+@app.get("/api/mentors/{mentor_id}/requests", response_model=List[schemas.MentorshipRequestResponse])
+async def get_mentor_requests(mentor_id: int, db: Session = Depends(database.get_db)):
+    """
+    Retrieves all mentorship requests associated with a specific mentor.
+    """
+    requests = db.query(models.MentorshipRequest).filter(models.MentorshipRequest.mentor_id == mentor_id).all()
+    return requests
+
+# NEW: API endpoint to fetch all mentorship requests for a specific mentee
+@app.get("/api/mentees/{mentee_id}/requests", response_model=List[schemas.MentorshipRequestResponse])
+async def get_mentee_requests(mentee_id: int, db: Session = Depends(database.get_db)):
+    """
+    Retrieves all mentorship requests associated with a specific mentee.
+    """
+    requests = db.query(models.MentorshipRequest).filter(models.MentorshipRequest.mentee_id == mentee_id).all()
+    return requests
+
+
 @app.post("/mentors/", response_model=schemas.MentorResponse, status_code=status.HTTP_201_CREATED)
 async def create_mentor(mentor_data: schemas.MentorCreate, db: Session = Depends(database.get_db)):
     """
@@ -54,6 +134,7 @@ async def create_mentor(mentor_data: schemas.MentorCreate, db: Session = Depends
             bio=mentor_data.bio,
             expertise=mentor_data.expertise,
             capacity=mentor_data.capacity,
+            current_mentees=0, # Ensure this is always 0 on creation
             availability=mentor_data.availability.model_dump(mode='json') if mentor_data.availability else None,
             preferences=mentor_data.preferences.model_dump(mode='json') if mentor_data.preferences else None,
             demographics=mentor_data.demographics

@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <article>
+        <h1>Find Your Mentor</h1>
+        <p class="lead">Tell us about yourself and your goals, and we'll connect you with the best mentors.</p>
+
+        <form id="mentee-signup-form">
+            <div class="grid">
+                <label for="bio">
+                    Biography / CV Summary
+                    <textarea id="bio" name="bio" placeholder="e.g., Recent graduate in computer science seeking startup experience." rows="4" required></textarea>
+                    <small>A brief summary of your background.</small>
+                </label>
+            </div>
+
+            <label for="goals">
+                Mentorship Goals
+                <textarea id="goals" name="goals" placeholder="e.g., Improve leadership skills, land a FAANG job, learn Python." rows="3" required></textarea>
+                <small>What do you hope to achieve with a mentor?</small>
+            </label>
+
+            <label for="mentorship_style">
+                Preferred Mentorship Style (optional)
+                <input type="text" id="mentorship_style" name="mentorship_style" placeholder="e.g., hands-on, advisory, career coaching">
+                <small>How do you prefer to be mentored?</small>
+            </label>
+
+            <div class="grid">
+                <label for="hours_per_month">
+                    Monthly Availability (Hours)
+                    <input type="number" id="hours_per_month" name="hours_per_month" placeholder="e.g., 6" min="0">
+                    <small>Estimated hours you can dedicate per month for mentorship.</small>
+                </label>
+
+                <!-- This simplified form currently does not collect specific time windows for mentees -->
+                <!-- You could add fields for day/time windows later if needed for more granular input -->
+            </div>
+
+            <!-- Simplified Preferences: Industries as comma-separated -->
+            <label for="preferences_industries">
+                Preferred Mentor Industries (comma-separated, optional)
+                <input type="text" id="preferences_industries" name="preferences_industries" placeholder="e.g., AI, Tech, Fintech">
+                <small>Industries you prefer your mentor to be in.</small>
+            </label>
+
+            <!-- Simplified Preferences: Languages as comma-separated -->
+            <label for="preferences_languages">
+                Preferred Mentor Languages (comma-separated, optional)
+                <input type="text" id="preferences_languages" name="preferences_languages" placeholder="e.g., English, Spanish">
+                <small>Languages you prefer your mentor to speak.</small>
+            </label>
+            
+            <button type="submit">Find My Mentor Matches</button>
+            <p id="mentee-response-message" aria-live="polite" style="margin-top: 1rem; display: none;"></p>
+        </form>
+    </article>
+
+    <section id="recommendations-section" style="display: none;">
+        <h2>Your Mentor Recommendations</h2>
+        <p class="lead" id="recommendations-message"></p>
+        <div id="mentor-recommendations" class="grid">
+            <!-- Mentor recommendations will be injected here by JavaScript -->
+        </div>
+    </section>
+
+    <!-- Modal for picking a mentor (using Pico.css modal) -->
+    <dialog id="pick-mentor-modal">
+        <article>
+            <a href="#close" aria-label="Close" class="close" onclick="togglePickMentorModal(event)"></a>
+            <h3>Confirm Mentorship Request</h3>
+            <p>You are about to send a request to <strong id="modal-mentor-name"></strong>.</p>
+            <label for="modal-request-message">
+                Message to Mentor (optional):
+                <textarea id="modal-request-message" rows="3" placeholder="I'm excited to learn from you..."></textarea>
+            </label>
+            <footer>
+                <a href="#cancel" role="button" class="secondary" onclick="togglePickMentorModal(event)">Cancel</a>
+                <a href="#confirm" role="button" id="confirm-pick-mentor">Send Request</a>
+            </footer>
+        </article>
+    </dialog>
+{% endblock %}

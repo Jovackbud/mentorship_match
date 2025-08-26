@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <article>
+        <h1>Become a Mentor</h1>
+        <p class="lead">Share your expertise and guide the next generation of professionals.</p>
+
+        <form id="mentor-signup-form">
+            <div class="grid">
+                <label for="bio">
+                    Biography / Expertise Summary
+                    <textarea id="bio" name="bio" placeholder="e.g., 10 years in tech leadership, specializing in AI ethics." rows="4" required></textarea>
+                    <small>Tell us about your background and what you specialize in.</small>
+                </label>
+            </div>
+
+            <label for="expertise">
+                Specific Expertise (optional)
+                <input type="text" id="expertise" name="expertise" placeholder="e.g., AI/ML, Project Management, Frontend Development">
+                <small>Keywords or phrases describing your key skills.</small>
+            </label>
+
+            <div class="grid">
+                <label for="capacity">
+                    Maximum Mentees
+                    <input type="number" id="capacity" name="capacity" value="1" min="1" required>
+                    <small>How many mentees can you actively support at one time?</small>
+                </label>
+
+                <label for="hours_per_month">
+                    Monthly Availability (Hours)
+                    <input type="number" id="hours_per_month" name="hours_per_month" placeholder="e.g., 4" min="0">
+                    <small>Estimated hours you can dedicate per month.</small>
+                </label>
+            </div>
+
+            <!-- Simplified Preferences: Industries as comma-separated -->
+            <label for="preferences_industries">
+                Preferred Mentee Industries (comma-separated, optional)
+                <input type="text" id="preferences_industries" name="preferences_industries" placeholder="e.g., Tech, Fintech, Healthcare">
+                <small>Industries you prefer your mentees to be in.</small>
+            </label>
+
+            <!-- Simplified Preferences: Languages as comma-separated -->
+            <label for="preferences_languages">
+                Preferred Mentee Languages (comma-separated, optional)
+                <input type="text" id="preferences_languages" name="preferences_languages" placeholder="e.g., English, Spanish">
+                <small>Languages you are comfortable mentoring in.</small>
+            </label>
+
+            <!-- Demographics as raw JSON for simplicity, with example -->
+            <label for="demographics">
+                Demographics (JSON format, optional)
+                <textarea id="demographics" name="demographics" rows="3" placeholder='{"gender": "Non-binary", "ethnicity": "Asian"}'></textarea>
+                <small>Optional: Share demographic info for diversity matching (e.g., <code>{"gender": "Female", "years_experience": 10}</code>).</small>
+            </label>
+            
+            <button type="submit">Register as Mentor</button>
+            <p id="mentor-response-message" aria-live="polite" style="margin-top: 1rem; display: none;"></p>
+        </form>
+    </article>
+{% endblock %}

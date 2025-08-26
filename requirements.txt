@@ -6,3 +6,4 @@ sqlalchemy~=2.0.30
 psycopg2-binary~=2.9.9 # For PostgreSQL connectivity
 pandas~=2.2.2
 scikit-learn~=1.5.0 # For potential future re-ranking, included for completeness if a simple model is desired
+jinja2

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <article>
+        <header>
+            <h1>Mentor Dashboard <small>({{ mentor_id }})</small></h1>
+            <p class="lead">Manage your mentorship requests and active mentees.</p>
+        </header>
+
+        <section id="mentor-profile-summary">
+            <h2>Your Profile</h2>
+            <p><strong>Mentor ID:</strong> {{ mentor_id }}</p>
+            <p>Loading additional profile details...</p>
+        </section>
+
+        <section id="mentorship-requests-section" style="margin-top: 2rem;">
+            <h2>Mentorship Requests</h2>
+            <p id="requests-message" aria-live="polite" style="display: none;"></p>
+            <div id="mentorship-requests-list" class="grid">
+                <!-- Mentorship requests will be injected here by JavaScript -->
+                <p>Loading your requests...</p>
+            </div>
+        </section>
+    </article>
+
+    <!-- Modal for rejection reason -->
+    <dialog id="reject-modal">
+        <article>
+            <a href="#close" aria-label="Close" class="close" onclick="toggleRejectModal()"></a>
+            <h3>Reject Mentorship Request</h3>
+            <p>Are you sure you want to reject this request?</p>
+            <label for="rejection-reason">
+                Reason for Rejection (optional):
+                <textarea id="rejection-reason" rows="3" placeholder="e.g., Not a good match for my expertise, No availability."></textarea>
+            </label>
+            <footer>
+                <a href="#cancel" role="button" class="secondary" onclick="toggleRejectModal()">Cancel</a>
+                <a href="#confirm" role="button" id="confirm-reject-btn">Confirm Rejection</a>
+            </footer>
+        </article>
+    </dialog>
+{% endblock %}

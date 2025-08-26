@@ -1,0 +1,103 @@
+/* Custom styles for success/error messages */
+#response-message[data-variant="success"] {
+    color: var(--pico-color-success); /* Pico's success color */
+    background-color: var(--pico-form-element-background-color); /* Light background */
+    border-left: 5px solid var(--pico-color-success);
+    padding: var(--pico-spacing);
+    margin-top: var(--pico-spacing);
+    font-weight: bold;
+}
+
+#response-message[data-variant="error"] {
+    color: var(--pico-color-danger); /* Pico's danger color */
+    background-color: var(--pico-form-element-background-color);
+    border-left: 5px solid var(--pico-color-danger);
+    padding: var(--pico-spacing);
+    margin-top: var(--pico-spacing);
+    font-weight: bold;
+}
+
+/* Custom styles for success/error messages */
+#mentor-response-message[data-variant="success"],
+#mentee-response-message[data-variant="success"],
+#requests-message[data-variant="success"] {
+    color: var(--pico-color-success); /* Pico's success color */
+    background-color: var(--pico-form-element-background-color); /* Light background */
+    border-left: 5px solid var(--pico-color-success);
+    padding: var(--pico-spacing);
+    margin-top: var(--pico-spacing);
+    font-weight: bold;
+}
+
+#mentor-response-message[data-variant="error"],
+#mentee-response-message[data-variant="error"],
+#requests-message[data-variant="error"] {
+    color: var(--pico-color-danger); /* Pico's danger color */
+    background-color: var(--pico-form-element-background-color);
+    border-left: 5px solid var(--pico-color-danger);
+    padding: var(--pico-spacing);
+    margin-top: var(--pico-spacing);
+    font-weight: bold;
+}
+
+/* Styles for mentorship request cards */
+#mentorship-requests-list article {
+    margin-bottom: var(--pico-spacing);
+    border: 1px solid var(--pico-form-element-border-color);
+    border-radius: var(--pico-border-radius);
+    padding: var(--pico-spacing);
+}
+
+#mentorship-requests-list article h5 {
+    margin-top: 0;
+    margin-bottom: var(--pico-spacing-0-5);
+    color: var(--pico-primary);
+}
+
+#mentorship-requests-list article p {
+    margin-bottom: var(--pico-spacing-0-25);
+}
+
+/* Status specific styling (using Pico's <mark> tag) */
+#mentorship-requests-list article mark.pending {
+    background-color: var(--pico-color-warning);
+    color: var(--pico-color-contrast);
+    padding: 0.2em 0.5em;
+    border-radius: var(--pico-border-radius);
+}
+
+#mentorship-requests-list article mark.accepted {
+    background-color: var(--pico-color-success);
+    color: var(--pico-color-contrast);
+    padding: 0.2em 0.5em;
+    border-radius: var(--pico-border-radius);
+}
+
+#mentorship-requests-list article mark.rejected,
+#mentorship-requests-list article mark.cancelled {
+    background-color: var(--pico-color-danger);
+    color: var(--pico-color-contrast);
+    padding: 0.2em 0.5em;
+    border-radius: var(--pico-border-radius);
+}
+
+#mentorship-requests-list article mark.completed {
+    background-color: var(--pico-color-secondary);
+    color: var(--pico-color-contrast);
+    padding: 0.2em 0.5em;
+    border-radius: var(--pico-border-radius);
+}
+
+#mentorship-requests-list footer button {
+    margin-right: var(--pico-spacing-0-5);
+}
+
+/* Styling for request category sections */
+.request-category {
+    margin-bottom: var(--pico-spacing-2); /* Add some space below each category block */
+}
+
+/* Ensure cards within their containers stack vertically with some margin */
+.cards-container article {
+    margin-bottom: var(--pico-spacing); /* Space between individual cards */
+}
