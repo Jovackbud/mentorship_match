@@ -1,9 +1,9 @@
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm # Added OAuth2PasswordRequestForm
+from fastapi import Depends, HTTPException, status, Request
+from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
@@ -37,9 +37,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     """Creates a JWT access token."""
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -58,17 +58,21 @@ def authenticate_user(db: Session, username: str, password: str) -> Optional[Use
         return None
     return user
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+def get_current_user(request: Request, db: Session = Depends(get_db)) -> User: # Use Request here
     """
-    Dependency that decodes the JWT token from the request header,
+    Dependency that decodes the JWT token from an HttpOnly cookie,
     verifies it, and retrieves the associated user from the database.
     Raises HTTPException if token is invalid or user not found.
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
     )
+    
+    token = request.cookies.get("access_token") # Get token from HttpOnly cookie
+    if not token:
+        raise credentials_exception
+
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
@@ -78,7 +82,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     except JWTError:
         raise credentials_exception
 
-    user = get_user(db, token_data.username) # Use the new get_user helper
+    user = get_user(db, token_data.username)
     if user is None:
         raise credentials_exception
     return user

@@ -26,6 +26,10 @@ def load_embedding_model():
 def get_embeddings(texts: list[str]) -> list[list[float]] | None:
     if not texts:
         return []
+    
+    if not all(isinstance(text, str) for text in texts):
+        logger.error("All elements in 'texts' must be strings. Received non-string elements.")
+        return None
 
     model = load_embedding_model()
     embeddings = None

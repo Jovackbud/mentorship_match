@@ -1,5 +1,5 @@
-/* Custom styles for success/error messages */
-#response-message[data-variant="success"] {
+/* General styling for success messages across the application */
+[data-variant="success"] { 
     color: var(--pico-color-success); /* Pico's success color */
     background-color: var(--pico-form-element-background-color); /* Light background */
     border-left: 5px solid var(--pico-color-success);
@@ -8,7 +8,8 @@
     font-weight: bold;
 }
 
-#response-message[data-variant="error"] {
+/* General styling for error messages across the application */
+[data-variant="error"] { 
     color: var(--pico-color-danger); /* Pico's danger color */
     background-color: var(--pico-form-element-background-color);
     border-left: 5px solid var(--pico-color-danger);
@@ -17,28 +18,17 @@
     font-weight: bold;
 }
 
-/* Custom styles for success/error messages */
-#mentor-response-message[data-variant="success"],
-#mentee-response-message[data-variant="success"],
-#requests-message[data-variant="success"] {
-    color: var(--pico-color-success); /* Pico's success color */
-    background-color: var(--pico-form-element-background-color); /* Light background */
-    border-left: 5px solid var(--pico-color-success);
-    padding: var(--pico-spacing);
-    margin-top: var(--pico-spacing);
-    font-weight: bold;
+/* Specific styling for inline small messages (e.g., password match, rating validation) */
+#password-match-feedback[data-variant="error"],
+#rating-feedback[data-variant="error"] { 
+    color: var(--pico-color-danger);
+    margin-top: 0.5rem; /* Adjust spacing as needed */
+    font-weight: normal; /* Less bold for inline feedback */
+    background-color: transparent; /* No background for inline small messages */
+    border-left: none; /* No border for inline small messages */
+    padding: 0;
 }
 
-#mentor-response-message[data-variant="error"],
-#mentee-response-message[data-variant="error"],
-#requests-message[data-variant="error"] {
-    color: var(--pico-color-danger); /* Pico's danger color */
-    background-color: var(--pico-form-element-background-color);
-    border-left: 5px solid var(--pico-color-danger);
-    padding: var(--pico-spacing);
-    margin-top: var(--pico-spacing);
-    font-weight: bold;
-}
 
 /* Styles for mentorship request cards */
 #mentorship-requests-list article {
@@ -101,31 +91,6 @@
 .cards-container article {
     margin-bottom: var(--pico-spacing); /* Space between individual cards */
 }
-/* Custom styles for success/error messages (Auth-specific) */
-#register-response-message[data-variant="success"],
-#login-response-message[data-variant="success"] {
-    color: var(--pico-color-success);
-    background-color: var(--pico-form-element-background-color);
-    border-left: 5px solid var(--pico-color-success);
-    padding: var(--pico-spacing);
-    margin-top: var(--pico-spacing);
-    font-weight: bold;
-}
-
-#register-response-message[data-variant="error"],
-#login-response-message[data-variant="error"] {
-    color: var(--pico-color-danger);
-    background-color: var(--pico-form-element-background-color);
-    border-left: 5px solid var(--pico-color-danger);
-    padding: var(--pico-spacing);
-    margin-top: var(--pico-spacing);
-    font-weight: bold;
-}
-
-/* Ensure list items for auth in nav are not hidden by default if present */
-#main-nav-links li {
-    display: list-item !important; /* Override potential hidden by other CSS, manage visibility with JS */
-}
 
 /* Fix for black dots in navigation */
 #main-nav-links {
@@ -134,6 +99,7 @@
 }
 
 /* Ensure list items for auth in nav are not hidden by default if present */
+/* Visibility is now fully managed by JS toggling the 'hidden' attribute */
 #main-nav-links li {
-    display: list-item !important; /* Override potential hidden by other CSS, manage visibility with JS */
+    display: list-item; /* Base display for list items */
 }

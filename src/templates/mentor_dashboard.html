@@ -3,24 +3,25 @@
 {% block content %}
     <article>
         <header>
-            <h1>Mentor Dashboard <small>({{ mentor_id }})</small></h1>
+            <h1>Mentor Dashboard <small id="mentor-dashboard-name">Loading Name...</small></h1>
             <p class="lead">Manage your mentorship requests and active mentees.</p>
         </header>
 
         <section id="mentor-profile-summary">
             <h2>Your Profile</h2>
-            <p><strong>Mentor ID:</strong> {{ mentor_id }}</p>
+            <p id="mentor-profile-message" aria-live="polite" hidden></p>
             <p>Loading additional profile details...</p>
         </section>
 
         <section id="mentorship-requests-section" style="margin-top: 2rem;">
             <h2>Mentorship Requests</h2>
-            <p id="requests-message" aria-live="polite" style="display: none;"></p>
+            <p id="requests-message" aria-live="polite" hidden></p>
             <div id="mentorship-requests-list" class="grid">
                 <!-- Mentorship requests will be injected here by JavaScript -->
                 <p>Loading your requests...</p>
             </div>
         </section>
+
     </article>
 
     <!-- Modal for rejection reason -->
@@ -34,8 +35,8 @@
                 <textarea id="rejection-reason" rows="3" placeholder="e.g., Not a good match for my expertise, No availability."></textarea>
             </label>
             <footer>
-                <a href="#cancel" role="button" class="secondary" onclick="toggleRejectModal()">Cancel</a>
-                <a href="#confirm" role="button" id="confirm-reject-btn">Confirm Rejection</a>
+                <button type="button" class="secondary" onclick="toggleRejectModal()">Cancel</button>
+                <button type="button" id="confirm-reject-btn">Confirm Rejection</button>
             </footer>
         </article>
     </dialog>

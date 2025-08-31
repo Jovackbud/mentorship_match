@@ -3,18 +3,22 @@ import numpy as np
 import logging
 import os
 from typing import List, Tuple, Optional
+from filelock import FileLock
 from .config import get_settings
 from .embeddings import EMBEDDING_DIM
+import traceback
 
 logger = logging.getLogger(__name__)
 
 settings = get_settings()
 FAISS_INDEX_PATH = settings.FAISS_INDEX_PATH
+FAISS_LOCK_PATH = settings.FAISS_LOCK_PATH
 
 class FaissIndex:
     def __init__(self, dimension: int):
         self.dimension = dimension
         self.index: Optional[faiss.IndexIDMap] = None
+        self.lock = FileLock(FAISS_LOCK_PATH)
         self._initialize_index()
 
     def _initialize_index(self):
@@ -25,18 +29,22 @@ class FaissIndex:
         base_index = faiss.IndexFlatIP(self.dimension)
         self.index = faiss.IndexIDMap(base_index)
 
-        if os.path.exists(FAISS_INDEX_PATH):
-            try:
-                self.index = faiss.read_index(FAISS_INDEX_PATH)
-                logger.info(f"FAISS IndexIDMap loaded from {FAISS_INDEX_PATH}. Total vectors: {self.index.ntotal}")
-            except Exception as e:
-                logger.warning(f"Failed to load FAISS IndexIDMap from {FAISS_INDEX_PATH}: {e}. Initializing a fresh index.")
-                new_base_index = faiss.IndexFlatIP(self.dimension)
-                self.index = faiss.IndexIDMap(new_base_index)
-        else:
-            logger.info(f"No FAISS index found at {FAISS_INDEX_PATH}. Initializing new IndexIDMap.")
+        # Use the lock when reading the index to prevent reading a partially written file
+        # (though for initial load, less critical than write, it's safer)
+        with self.lock: # ADD THIS LINE
+            if os.path.exists(FAISS_INDEX_PATH):
+                try:
+                    self.index = faiss.read_index(FAISS_INDEX_PATH)
+                    logger.info(f"FAISS IndexIDMap loaded from {FAISS_INDEX_PATH}. Total vectors: {self.index.ntotal}")
+                except Exception as e:
+                    logger.warning(f"Failed to load FAISS IndexIDMap from {FAISS_INDEX_PATH}: {e}. Initializing a fresh index.")
+                    logger.debug(f"FAISS index load traceback: {traceback.format_exc()}") # ADDED traceback logging
+                    new_base_index = faiss.IndexFlatIP(self.dimension)
+                    self.index = faiss.IndexIDMap(new_base_index)
+            else:
+                logger.info(f"No FAISS index found at {FAISS_INDEX_PATH}. Initializing new IndexIDMap.")
 
-    def add_embedding(self, embedding: List[float], mentor_id: int):
+    def add_embedding(self, embedding: List[float], mentor_id: int, auto_save: bool = True):
         """
         Adds or updates a single embedding to the FAISS index with its corresponding integer ID.
         IndexIDMap's add_with_ids method inherently handles updating if the ID already exists.
@@ -55,9 +63,10 @@ class FaissIndex:
 
         self.index.add_with_ids(np_embedding, np.array([mentor_id]))
         logger.info(f"Added/Updated embedding for mentor ID: {mentor_id}. Total vectors in index: {self.index.ntotal}")
-        self._save_index()
+        if auto_save:
+            self._save_index()
 
-    def remove_embedding(self, mentor_id: int):
+    def remove_embedding(self, mentor_id: int, auto_save: bool = True):
         """
         Removes an embedding from the FAISS index using its integer ID.
         """
@@ -73,7 +82,8 @@ class FaissIndex:
         
         if self.index.ntotal < initial_ntotal:
             logger.info(f"Removed embedding for mentor ID: {mentor_id}. Total vectors in index: {self.index.ntotal}")
-            self._save_index()
+            if auto_save:
+                self._save_index()
         else:
             logger.warning(f"Mentor ID {mentor_id} not found in FAISS index. Nothing to remove.")
 
@@ -108,14 +118,23 @@ class FaissIndex:
             return []
 
     def _save_index(self):
-        """Saves the FAISS index to disk."""
+        """Saves the FAISS index to disk. This operation is now protected by a file lock."""
         if self.index is None:
             logger.error("FAISS index is not initialized. Cannot save.")
             return
+        
+        # ADD THIS BLOCK: Acquire the lock before writing
         try:
-            faiss.write_index(self.index, FAISS_INDEX_PATH)
+            with self.lock:
+                faiss.write_index(self.index, FAISS_INDEX_PATH)
         except Exception as e:
             logger.error(f"Failed to save FAISS index to {FAISS_INDEX_PATH}: {e}")
+
+    def save_index(self):
+        """
+        Public method to explicitly save the FAISS index to disk.
+        """
+        self._save_index()
 
 # Instantiate FAISS index globally
 faiss_index_manager = FaissIndex(dimension=EMBEDDING_DIM)
@@ -141,9 +160,10 @@ if __name__ == '__main__':
 
     if mock_mentor_embeddings:
         print(f"Generated {len(mock_mentor_embeddings)} mock mentor embeddings.")
-        faiss_index_manager.add_embedding(mock_mentor_embeddings[0], mock_mentor_ids[0])
-        faiss_index_manager.add_embedding(mock_mentor_embeddings[1], mock_mentor_ids[1])
-        faiss_index_manager.add_embedding(mock_mentor_embeddings[2], mock_mentor_ids[2])
+        faiss_index_manager.add_embedding(mock_mentor_embeddings[0], mock_mentor_ids[0], auto_save=False)
+        faiss_index_manager.add_embedding(mock_mentor_embeddings[1], mock_mentor_ids[1], auto_save=False)
+        faiss_index_manager.add_embedding(mock_mentor_embeddings[2], mock_mentor_ids[2], auto_save=False)
+        faiss_index_manager.save_index()
 
         print("\n--- Testing update of Mentor 1 ---")
         updated_text_1 = "Experienced software engineer, now specializing in AI and Machine Learning."

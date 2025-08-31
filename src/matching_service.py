@@ -14,27 +14,33 @@ class MatchingService:
         self.faiss_manager = vector_store.faiss_index_manager
         # No need to manage separate FAISS ID mappings if app uses same int IDs
 
+    def batch_update_faiss_index(self, mentor_embeddings_data: List[Tuple[List[float], int]]):
+        """
+        Adds/updates multiple embeddings to the FAISS index and then saves it once.
+        """
+        if not mentor_embeddings_data:
+            return
+
+        # Add/update all embeddings without immediate saving
+        for embedding, mentor_id in mentor_embeddings_data:
+            self.faiss_manager.add_embedding(embedding, mentor_id, auto_save=False)
+        
+        # Save the index once after all operations
+        self.faiss_manager.save_index()
+        logger.info(f"FAISS index saved after batch update with {len(mentor_embeddings_data)} embeddings.")
+
     def initialize_faiss_with_mentors(self):
-        """
-        Populates (or re-populates) the FAISS index with embeddings of all active mentors from the database.
-        This ensures the IndexIDMap is in sync with the DB on startup or major updates.
-        """
         logger.info("Initializing FAISS index with existing mentor embeddings.")
         all_active_mentors = self.db.query(models.Mentor).filter(models.Mentor.is_active == True).all()
 
-        if not all_active_mentors:
-            logger.warning("No active mentors found in the database to initialize FAISS index.")
-            return
-
+        embeddings_to_add = []
         for mentor in all_active_mentors:
             if mentor.embedding:
-                # Use add_embedding which handles both add and update, directly with mentor.id
-                self.faiss_manager.add_embedding(
-                    cast(List[float], mentor.embedding), mentor.id
-                )
+                embeddings_to_add.append((cast(List[float], mentor.embedding), mentor.id))
             else:
                 logger.error(f"Mentor ID: {mentor.id} is missing embedding during FAISS initialization. Skipping.")
-
+        
+        self.batch_update_faiss_index(embeddings_to_add) # Use the batch method
         logger.info(f"Successfully synchronized {self.faiss_manager.index.ntotal} mentor embeddings with FAISS index.")
 
 
@@ -47,10 +53,11 @@ class MatchingService:
         """
         Executes the full mentor matching pipeline for a given mentee profile.
         """
-        logger.info(f"Starting matching process for mentee.")
+        logger.info(f"Starting matching process for mentee: {mentee_profile_data.get('name', 'Unknown Mentee')}.") # UPDATED LOG
 
         # 1. Embedding Mentee Profile
-        mentee_text = f"{mentee_profile_data.get('bio', '')} {mentee_profile_data.get('goals', '')}"
+        # ADD mentee_profile_data.get('name', '') to the text for embedding
+        mentee_text = f"{mentee_profile_data.get('bio', '')} {mentee_profile_data.get('goals', '')} {mentee_profile_data.get('name', '')}" 
         mentee_embedding = embeddings.get_embeddings([mentee_text])
 
         if mentee_embedding is None or not mentee_embedding:
@@ -79,7 +86,8 @@ class MatchingService:
         candidate_mentors_dicts = []
         for mentor_orm in candidate_mentors_db:
             mentor_dict = {
-                'id': mentor_orm.id, # Now integer
+                'id': mentor_orm.id,
+                'name': mentor_orm.name,
                 'bio': mentor_orm.bio,
                 'expertise': mentor_orm.expertise,
                 'capacity': mentor_orm.capacity,

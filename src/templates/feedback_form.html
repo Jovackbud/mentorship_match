@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <article>
+        <header>
+            <h1>Submit Mentorship Feedback</h1>
+            <p class="lead">Help us improve by providing feedback on your mentorship experience.</p>
+        </header>
+
+        <form id="feedback-form">
+            <div class="grid">
+                <label for="mentee_id">
+                    Your Mentee ID
+                    <input type="number" id="mentee_id" name="mentee_id" placeholder="e.g., 101" required>
+                    <small>This should be your Mentee ID (found on your mentee dashboard).</small>
+                </label>
+                <label for="mentor_id">
+                    Mentor's ID
+                    <input type="number" id="mentor_id" name="mentor_id" placeholder="e.g., 1" required>
+                    <small>The ID of the mentor you are providing feedback for.</small>
+                </label>
+            </div>
+
+            <label>
+                Rating (1-5 Stars)
+                <div role="group" class="rating-group" style="display: flex; gap: 1rem; flex-wrap: wrap; margin-top: var(--pico-spacing-0-5);">
+                    <label for="rating-5">
+                        <input type="radio" id="rating-5" name="rating" value="5" required> 5 Stars (Excellent)
+                    </label>
+                    <label for="rating-4">
+                        <input type="radio" id="rating-4" name="rating" value="4"> 4 Stars (Very Good)
+                    </label>
+                    <label for="rating-3">
+                        <input type="radio" id="rating-3" name="rating" value="3"> 3 Stars (Good)
+                    </label>
+                    <label for="rating-2">
+                        <input type="radio" id="rating-2" name="rating" value="2"> 2 Stars (Fair)
+                    </label>
+                    <label for="rating-1">
+                        <input type="radio" id="rating-1" name="rating" value="1"> 1 Star (Poor)
+                    </label>
+                </div>
+                <small id="rating-feedback" hidden>Please select a rating.</small>
+            </label>
+
+            <label for="comment">
+                Additional Comments (optional)
+                <textarea id="comment" name="comment" rows="5" placeholder="Share your experience, what went well, or areas for improvement."></textarea>
+            </label>
+
+            <button type="submit">Submit Feedback</button>
+            <p id="feedback-response-message" aria-live="polite" style="margin-top: 1rem;" hidden></p>
+        </form>
+    </article>
+{% endblock %}

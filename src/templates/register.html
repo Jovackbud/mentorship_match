@@ -21,10 +21,11 @@
             <label for="confirm-password">
                 Confirm Password
                 <input type="password" id="confirm-password" name="confirm_password" placeholder="Re-enter your password" required>
+                <small id="password-match-feedback" aria-live="polite" hidden></small>
             </label>
             
             <button type="submit">Register</button>
-            <p id="register-response-message" aria-live="polite" style="margin-top: 1rem; display: none;"></p>
+            <p id="register-response-message" aria-live="polite" style="margin-top: 1rem;" hidden></p>
             <p>Already have an account? <a href="/login">Login here</a>.</p>
         </form>
     </article>

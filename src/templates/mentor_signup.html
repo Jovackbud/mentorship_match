@@ -6,6 +6,11 @@
         <p class="lead">Share your expertise and guide the next generation of professionals.</p>
 
         <form id="mentor-signup-form">
+            <label for="name">
+                Your Full Name
+                <input type="text" id="name" name="name" placeholder="e.g., Alice Johnson" required minlength="2" maxlength="100">
+                <small>Your name will be visible to potential mentees.</small>
+            </label>
             <div class="grid">
                 <label for="bio">
                     Biography / Expertise Summary
@@ -52,11 +57,11 @@
             <label for="demographics">
                 Demographics (JSON format, optional)
                 <textarea id="demographics" name="demographics" rows="3" placeholder='{"gender": "Non-binary", "ethnicity": "Asian"}'></textarea>
-                <small>Optional: Share demographic info for diversity matching (e.g., <code>{"gender": "Female", "years_experience": 10}</code>).</small>
+                <small>Optional: Share demographic info for diversity matching (e.g., <code>{"gender": "Female", "years_experience": 10}</code>). Ensure valid JSON format (double quotes for keys and string values).</small>
             </label>
             
             <button type="submit">Register as Mentor</button>
-            <p id="mentor-response-message" aria-live="polite" style="margin-top: 1rem; display: none;"></p>
+            <p id="mentor-response-message" aria-live="polite" style="margin-top: 1rem;" hidden></p>
         </form>
     </article>
 {% endblock %}

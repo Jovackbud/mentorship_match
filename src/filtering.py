@@ -4,6 +4,20 @@ from typing import Dict, List, Any, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
+def _check_preference_overlap(mentee_prefs: List[str], mentor_prefs: List[str]) -> bool:
+    """
+    Checks if there is an overlap between mentee and mentor preferences.
+    If mentee has no preferences, it's considered a match (mentee is flexible).
+    If mentee has preferences but mentor has none, it's considered a mismatch.
+    """
+    if not mentee_prefs: # If mentee doesn't specify (flexible), it's a match
+        return True
+    if not mentor_prefs: # If mentee specifies but mentor doesn't, it's a mismatch
+        return False
+    
+    # If both have preferences, check for any common item
+    return any(pref in mentor_prefs for pref in mentee_prefs)
+
 # Helper function to parse time strings (e.g., "09:00-11:00") into start and end time objects
 def parse_time_range(time_str: str) -> Optional[Tuple[time, time]]:
     """Parses a 'HH:MM-HH:MM' string into (start_time, end_time) time objects."""
@@ -111,30 +125,12 @@ def apply_filters(mentee_profile: Dict[str, Any], candidate_mentors: List[Dict[s
             mentor['__overlap_minutes'] = 0 # Default if not specified
 
         # 3. Preferences Match (Industry/Language)
-        # Ensure mentor preferences is a dict
         mentor_preferences = mentor.get('preferences') or {}
         mentor_industries = [ind.lower() for ind in mentor_preferences.get('industries', [])]
         mentor_languages = [lang.lower() for lang in mentor_preferences.get('languages', [])]
 
-        industry_match = False
-        if mentee_target_industries: # If mentee specified industries
-            if not mentor_industries: # And mentor didn't specify, assume no match or broad
-                industry_match = False
-            else:
-                if any(ind in mentor_industries for ind in mentee_target_industries):
-                    industry_match = True
-        else: # If mentee didn't specify, consider it a match
-            industry_match = True
-
-        language_match = False
-        if mentee_target_languages: # If mentee specified languages
-            if not mentor_languages: # And mentor didn't specify, assume no match or broad
-                language_match = False
-            else:
-                if any(lang in mentor_languages for lang in mentee_target_languages):
-                    language_match = True
-        else: # If mentee didn't specify, consider it a match
-            language_match = True
+        industry_match = _check_preference_overlap(mentee_target_industries, mentor_industries)
+        language_match = _check_preference_overlap(mentee_target_languages, mentor_languages)
 
         if not (industry_match and language_match):
             logger.debug(f"Mentor {mentor_id} filtered out: Preference mismatch (Industry: {industry_match}, Language: {language_match}).")
@@ -143,7 +139,6 @@ def apply_filters(mentee_profile: Dict[str, Any], candidate_mentors: List[Dict[s
         # Store preference match info for re-ranking
         mentor['__industry_match'] = industry_match
         mentor['__language_match'] = language_match
-        # Simple count of preference matches (can be extended)
         mentor['__preference_match_count'] = int(industry_match) + int(language_match)
 
         filtered_mentors.append(mentor)

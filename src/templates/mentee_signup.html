@@ -3,9 +3,14 @@
 {% block content %}
     <article>
         <h1>Find Your Mentor</h1>
-        <p class="lead">Tell us about yourself and your goals, and we'll connect you with the best mentors.</p>
+        <p class="lead">Tell us about yourself and your goals to create or update your mentee profile, and we'll connect you with the best mentors.</p>
 
         <form id="mentee-signup-form">
+            <label for="name">
+                Your Full Name
+                <input type="text" id="name" name="name" placeholder="e.g., Bob Williams" required minlength="2" maxlength="100">
+                <small>Your name will be visible to potential mentors.</small>
+            </label>
             <div class="grid">
                 <label for="bio">
                     Biography / CV Summary
@@ -52,32 +57,32 @@
             </label>
             
             <button type="submit">Find My Mentor Matches</button>
-            <p id="mentee-response-message" aria-live="polite" style="margin-top: 1rem; display: none;"></p>
+            <p id="mentee-response-message" aria-live="polite" style="margin-top: 1rem;" hidden></p>
         </form>
+
+        <section id="recommendations-section" hidden>
+            <h2>Your Mentor Recommendations</h2>
+            <p class="lead" id="recommendations-message"></p>
+            <div id="mentor-recommendations" class="grid">
+                <!-- Mentor recommendations will be injected here by JavaScript -->
+            </div>
+        </section>
+
+        <!-- Modal for picking a mentor (using Pico.css modal) -->
+        <dialog id="pick-mentor-modal">
+            <article>
+                <a href="#close" aria-label="Close" class="close" onclick="togglePickMentorModal(event)"></a>
+                <h3>Confirm Mentorship Request</h3>
+                <p>You are about to send a request to <strong id="modal-mentor-name"></strong>.</p>
+                <label for="modal-request-message">
+                    Message to Mentor (optional):
+                    <textarea id="modal-request-message" rows="3" placeholder="I'm excited to learn from you..."></textarea>
+                </label>
+                <footer>
+                    <button type="button" class="secondary" onclick="togglePickMentorModal(event)">Cancel</button>
+                    <button type="button" id="confirm-pick-mentor">Send Request</button>
+                </footer>
+            </article>
+        </dialog>
     </article>
-
-    <section id="recommendations-section" style="display: none;">
-        <h2>Your Mentor Recommendations</h2>
-        <p class="lead" id="recommendations-message"></p>
-        <div id="mentor-recommendations" class="grid">
-            <!-- Mentor recommendations will be injected here by JavaScript -->
-        </div>
-    </section>
-
-    <!-- Modal for picking a mentor (using Pico.css modal) -->
-    <dialog id="pick-mentor-modal">
-        <article>
-            <a href="#close" aria-label="Close" class="close" onclick="togglePickMentorModal(event)"></a>
-            <h3>Confirm Mentorship Request</h3>
-            <p>You are about to send a request to <strong id="modal-mentor-name"></strong>.</p>
-            <label for="modal-request-message">
-                Message to Mentor (optional):
-                <textarea id="modal-request-message" rows="3" placeholder="I'm excited to learn from you..."></textarea>
-            </label>
-            <footer>
-                <a href="#cancel" role="button" class="secondary" onclick="togglePickMentorModal(event)">Cancel</a>
-                <a href="#confirm" role="button" id="confirm-pick-mentor">Send Request</a>
-            </footer>
-        </article>
-    </dialog>
 {% endblock %}
