@@ -12,14 +12,17 @@
         <ul>
             <li><strong>MentorMatch</strong></li>
         </ul>
-        <ul id="main-nav-links">
+        <ul id="main-nav-links-right"> {# NEW ID: Differentiate from the left-side ul #}
             <li><a href="/" class="secondary">Home</a></li>
-            <li><a href="/signup/mentor" class="secondary">Become a Mentor</a></li>
-            <li><a href="/signup/mentee" class="secondary">Find a Mentor</a></li>
-            <li id="register-nav-item"><a href="/register" class="secondary">Register</a></li> {# ADDED ID #}
-            <li id="login-nav-item"><a href="/login" class="secondary">Login</a></li>         {# ADDED ID #}
+            <li id="nav-become-mentor" hidden><a href="/signup/mentor" class="secondary">Become a Mentor</a></li> {# NEW ID, initially hidden #}
+            <li id="nav-find-mentor" hidden><a href="/signup/mentee" class="secondary">Find a Mentor</a></li>     {# NEW ID, initially hidden #}
+            <li id="nav-mentor-dashboard" hidden><a href="#" class="secondary">My Mentor Dashboard</a></li> {# NEW ID, initially hidden #}
+            <li id="nav-mentee-dashboard" hidden><a href="#" class="secondary">My Mentee Dashboard</a></li> {# NEW ID, initially hidden #}
+            <li id="nav-feedback" hidden><a href="/feedback" class="secondary">Give Feedback</a></li>       {# NEW ID, initially hidden #}
+            <li id="register-nav-item" hidden><a href="/register" class="secondary">Register</a></li> {# Using hidden instead of display: none #}
+            <li id="login-nav-item" hidden><a href="/login" class="secondary">Login</a></li>         {# Using hidden instead of display: none #}
             <li><a href="/docs" class="secondary">API Docs</a></li>
-            <li id="logout-nav-item" hidden><a href="javascript:void(0);" id="logout-btn" role="button" class="contrast">Logout</a></li>
+            <li id="logout-nav-item" hidden><a href="javascript:void(0);" id="logout-btn" role="button" class="contrast">Logout</a></li> {# Using hidden, href for robustness #}
         </ul>
     </nav>
     <main class="container">
@@ -28,6 +31,23 @@
     <footer class="container-fluid">
         <small>Powered by FastAPI & Pico.css | &copy; 2025 MentorMatch</small>
     </footer>
+
+    <!-- MOVE pick-mentor-modal HERE from mentee_signup.html -->
+    <dialog id="pick-mentor-modal">
+        <article>
+            <a href="#close" aria-label="Close" class="close" onclick="togglePickMentorModal(event)"></a>
+            <h3>Confirm Mentorship Request</h3>
+            <p>You are about to send a request to <strong id="modal-mentor-name"></strong>.</p>
+            <label for="modal-request-message">
+                Message to Mentor (optional):
+                <textarea id="modal-request-message" rows="3" placeholder="I'm excited to learn from you..."></textarea>
+            </label>
+            <footer>
+                <button type="button" class="secondary" onclick="togglePickMentorModal(event)">Cancel</button>
+                <button type="button" id="confirm-pick-mentor">Send Request</button>
+            </footer>
+        </article>
+    </dialog>
     <script src="/static/js/main.js"></script>
 </body>
 </html>

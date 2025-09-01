@@ -1,6 +1,16 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- Common Elements & Helpers ---
-    const mainNavLinks = document.getElementById('main-nav-links');
+    // This is for the 'MentorMatch' strong tag on the left side of the nav
+    const mainNavLinks = document.getElementById('main-nav-links'); 
+    // This is for the <ul> containing functional links on the right side of the nav
+    const mainNavLinksRight = document.getElementById('main-nav-links-right'); 
+
+    // Navigation Items - Dynamically managed visibility
+    const navBecomeMentor = document.getElementById('nav-become-mentor'); 
+    const navFindMentor = document.getElementById('nav-find-mentor');     
+    const navMentorDashboard = document.getElementById('nav-mentor-dashboard'); 
+    const navMenteeDashboard = document.getElementById('nav-mentee-dashboard'); 
+    const navFeedback = document.getElementById('nav-feedback');         
     const registerNavItem = document.getElementById('register-nav-item');
     const loginNavItem = document.getElementById('login-nav-item');
     const logoutNavItem = document.getElementById('logout-nav-item');
@@ -13,42 +23,44 @@ document.addEventListener('DOMContentLoaded', () => {
     const menteeSignupForm = document.getElementById('mentee-signup-form');
     const feedbackForm = document.getElementById('feedback-form'); 
 
-    // Response Messages for Forms
+    // Response Messages for Forms (these will display inline below forms/sections)
     const registerResponseMessage = document.getElementById('register-response-message');
     const loginResponseMessage = document.getElementById('login-response-message');
     const mentorResponseMessage = document.getElementById('mentor-response-message');
     const menteeResponseMessage = document.getElementById('mentee-response-message');
     const feedbackResponseMessage = document.getElementById('feedback-response-message');
-    // Client-side validation feedback elements
+    
+    // Client-side validation feedback elements (e.g., password mismatch)
     const passwordMatchFeedback = document.getElementById('password-match-feedback');
     const ratingFeedback = document.getElementById('rating-feedback');
 
-    // Mentee Signup Specifics
-    const recommendationsSection = document.getElementById('recommendations-section');
+    // Mentee Signup/Dashboard Specifics (Recommendations section is now primarily on the mentee dashboard)
+    const recommendationsSection = document.getElementById('recommendations-section'); 
     const recommendationsMessage = document.getElementById('recommendations-message');
     const mentorRecommendationsDiv = document.getElementById('mentor-recommendations');
-    const pickMentorModal = document.getElementById('pick-mentor-modal');
-    const modalMentorName = document.getElementById('modal-mentor-name'); // Will now display mentor's actual name
+    const pickMentorModal = document.getElementById('pick-mentor-modal'); // Moved to base.html for global access
+    const modalMentorName = document.getElementById('modal-mentor-name'); 
     const modalRequestMessage = document.getElementById('modal-request-message');
     const confirmPickMentorBtn = document.getElementById('confirm-pick-mentor');
+    const findNewMentorsBtn = document.getElementById('find-new-mentors-btn'); // New button on mentee dashboard
 
     // Mentor Dashboard Specifics
-    const mentorDashboardName = document.getElementById('mentor-dashboard-name'); // For dashboard title
+    const mentorDashboardName = document.getElementById('mentor-dashboard-name'); // For dynamic dashboard title (e.g., "Alice Johnson")
     const mentorDashboardProfileSummary = document.getElementById('mentor-profile-summary');
     const mentorDashboardRequestsSection = document.getElementById('mentorship-requests-section');
     const mentorRequestsList = document.getElementById('mentorship-requests-list');
-    const requestsMessage = document.getElementById('requests-message');
+    const requestsMessage = document.getElementById('requests-message'); // General message area for mentor dashboard
     const rejectModal = document.getElementById('reject-modal');
     const rejectionReasonInput = document.getElementById('rejection-reason');
     const confirmRejectBtn = document.getElementById('confirm-reject-btn');
-    const mentorProfileMessage = document.getElementById('mentor-profile-message'); // For profile fetch errors
+    const mentorProfileMessage = document.getElementById('mentor-profile-message'); // Specific message area for mentor profile fetch errors
 
     // Mentee Dashboard Specifics
-    const menteeDashboardName = document.getElementById('mentee-dashboard-name'); // For dashboard title
+    const menteeDashboardName = document.getElementById('mentee-dashboard-name'); // For dynamic dashboard title (e.g., "Bob Williams")
     const menteeDashboardProfileSummary = document.getElementById('mentee-profile-summary');
     const menteeDashboardRequestsList = document.getElementById('mentee-mentorship-requests-list');
-    const menteeRequestsMessage = document.getElementById('mentee-requests-message');
-    const menteeProfileMessage = document.getElementById('mentee-profile-message'); // For profile fetch errors
+    const menteeRequestsMessage = document.getElementById('mentee-requests-message'); // General message area for mentee dashboard
+    const menteeProfileMessage = document.getElementById('mentee-profile-message'); // Specific message area for mentee profile fetch errors
     
     // --- Global State Variables ---
     let currentMenteeId = null;
@@ -56,49 +68,98 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentMentorDashboardId = null;
     let currentMenteeDashboardId = null;
     let currentRequestIdForAction = null;
-    let currentUser = null; // Will store the user object from /users/me if authenticated
+    let currentUser = null; // Stores user object (from /users/me/) if authenticated
 
     // --- Authentication & Navigation Helpers ---
 
-    // isAuthenticated now relies on the `currentUser` object being set by `checkSessionAndFetchUser`
+    /**
+     * Checks if a user is currently authenticated based on the currentUser state.
+     * @returns {boolean} True if authenticated, false otherwise.
+     */
     function isAuthenticated() {
         return currentUser !== null;
     }
 
-    // Function to update navigation links based on authentication status
+    /**
+     * Updates the visibility and content of navigation links based on authentication status
+     * and whether the user has associated mentor/mentee profiles.
+     */
     function updateNavLinks() {
-        if (isAuthenticated()) {
-            if (registerNavItem) registerNavItem.hidden = true;
-            if (loginNavItem) loginNavItem.hidden = true;
-            if (logoutNavItem) logoutNavItem.hidden = false;
+        // Handle Register/Login/Logout visibility
+        if (registerNavItem) registerNavItem.hidden = isAuthenticated();
+        if (loginNavItem) loginNavItem.hidden = isAuthenticated();
+        if (logoutNavItem) logoutNavItem.hidden = !isAuthenticated();
+
+        // Handle dynamic dashboard/signup links visibility
+        if (isAuthenticated() && currentUser) {
+            // Mentor-specific links
+            if (navMentorDashboard) {
+                if (currentUser.mentor_profile_id) {
+                    navMentorDashboard.querySelector('a').href = `/dashboard/mentor/${currentUser.mentor_profile_id}`;
+                    navMentorDashboard.hidden = false;
+                    if (navBecomeMentor) navBecomeMentor.hidden = true; // Hide "Become a Mentor" if already a mentor
+                } else {
+                    navMentorDashboard.hidden = true;
+                    if (navBecomeMentor) navBecomeMentor.hidden = false; // Show "Become a Mentor" if not
+                }
+            }
+            // Mentee-specific links
+            if (navMenteeDashboard) {
+                if (currentUser.mentee_profile_id) {
+                    navMenteeDashboard.querySelector('a').href = `/dashboard/mentee/${currentUser.mentee_profile_id}`;
+                    navMenteeDashboard.hidden = false;
+                    if (navFindMentor) navFindMentor.hidden = true; // Hide "Find a Mentor" if already a mentee
+                    if (navFeedback) navFeedback.hidden = false;     // Show feedback if already a mentee
+                } else {
+                    navMenteeDashboard.hidden = true;
+                    if (navFindMentor) navFindMentor.hidden = false; // Show "Find a Mentor" if not
+                    if (navFeedback) navFeedback.hidden = true;      // Hide feedback if not a mentee
+                }
+            }
         } else {
-            if (registerNavItem) registerNavItem.hidden = false;
-            if (loginNavItem) loginNavItem.hidden = false;
-            if (logoutNavItem) logoutNavItem.hidden = true;
+            // Not authenticated, hide all dynamic profile links and show generic signup/login
+            if (navMentorDashboard) navMentorDashboard.hidden = true;
+            if (navMenteeDashboard) navMenteeDashboard.hidden = true;
+            if (navBecomeMentor) navBecomeMentor.hidden = false;
+            if (navFindMentor) navFindMentor.hidden = false;
+            if (navFeedback) navFeedback.hidden = true;
         }
     }
 
-    // New: Check session on page load by calling /users/me
+    /**
+     * Checks for an active user session by calling /users/me/ and updates UI accordingly.
+     * Handles redirects for protected pages if no session is active or user has existing profile.
+     */
     async function checkSessionAndFetchUser() {
         try {
-            // Frontend will implicitly send HttpOnly cookies.
-            // Backend /users/me will check the cookie and return user info if valid, or 401.
             const response = await fetch('/users/me/', { 
                 method: 'GET', 
                 headers: {'Content-Type': 'application/json'},
-                credentials: 'include' // Important for sending cookies
+                credentials: 'include' // Ensures HttpOnly cookies are sent by the browser
             });
             if (response.ok) {
                 currentUser = await response.json();
-                console.log('Session active. User:', currentUser.username);
-                updateNavLinks();
-            } else {
-                currentUser = null;
-                console.log('No active session or token expired.');
-                updateNavLinks();
-                // If on a protected dashboard page without a session, redirect
+                console.log('Session active. User:', currentUser.username, 'Mentor ID:', currentUser.mentor_profile_id, 'Mentee ID:', currentUser.mentee_profile_id);
+                
+                updateNavLinks(); // Update generic login/logout and dynamic profile links
+
+                // Redirect logic: If logged in, prevent access to signup pages they no longer need
                 const path = window.location.pathname;
-                if (path.startsWith('/dashboard/') || path.startsWith('/feedback')) { // Also protect feedback form
+                if (path.startsWith('/signup/mentor') && currentUser.mentor_profile_id) {
+                    window.location.href = `/dashboard/mentor/${currentUser.mentor_profile_id}`;
+                }
+                if (path.startsWith('/signup/mentee') && currentUser.mentee_profile_id) {
+                    window.location.href = `/dashboard/mentee/${currentUser.mentee_profile_id}`;
+                }
+
+            } else {
+                currentUser = null; // Clear user state if session is invalid
+                console.log('No active session or token expired.');
+                updateNavLinks(); // This will show Register/Login links again
+
+                // Redirect from protected dashboard/feedback pages if no session is active
+                const path = window.location.pathname;
+                if (path.startsWith('/dashboard/') || path.startsWith('/feedback')) {
                     console.log('Redirecting from protected page due to no active session.');
                     window.location.href = '/login';
                 }
@@ -110,30 +171,29 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Logout function: sends request to backend to clear HttpOnly cookie
+    /**
+     * Logs out the current user by sending a request to the backend to clear the HttpOnly cookie.
+     */
     async function logout() {
         try {
-            // Assume a /logout endpoint on the backend that clears the HttpOnly cookie
             const response = await fetch('/logout', { 
                 method: 'POST',
-                credentials: 'include' // Important for sending cookies to clear
+                credentials: 'include' // Ensures HttpOnly cookie is sent to be cleared
             }); 
             if (response.ok) {
-                currentUser = null; // Clear client-side user state
+                currentUser = null; 
                 console.log('Logged out successfully from backend and client.');
                 updateNavLinks();
-                window.location.href = '/login'; // Redirect to login page
+                window.location.href = '/login'; 
             } else {
                 console.error('Logout failed on backend:', await response.text());
-                // Even if backend fails, clear client-side state for UX
-                currentUser = null;
+                currentUser = null; // Still clear client-side state for UX
                 updateNavLinks();
                 window.location.href = '/login';
             }
         } catch (error) {
             console.error('Network error during logout:', error);
-            // Fallback: clear client-side state for UX even on network error
-            currentUser = null;
+            currentUser = null; // Still clear client-side state for UX
             updateNavLinks();
             window.location.href = '/login';
         }
@@ -143,59 +203,82 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Generic Message Handlers ---
+
+    /**
+     * Displays a message to the user, applying appropriate styling.
+     * @param {HTMLElement} messageElement - The HTML element to display the message in.
+     * @param {string} message - The message text or HTML to display.
+     * @param {'success'|'error'} type - The type of message ('success' or 'error') for styling.
+     */
     function showFormMessage(messageElement, message, type) {
         if (messageElement) {
             messageElement.innerHTML = message;
             messageElement.setAttribute('data-variant', type);
-            messageElement.hidden = false; // Show the message
+            messageElement.hidden = false; 
         }
     }
 
+    /**
+     * Hides a displayed message.
+     * @param {HTMLElement} messageElement - The HTML element containing the message.
+     */
     function hideFormMessage(messageElement) {
         if (messageElement) {
             messageElement.innerHTML = '';
             messageElement.removeAttribute('data-variant');
-            messageElement.hidden = true; // Hide the message
+            messageElement.hidden = true; 
         }
     }
 
     // --- Modal Toggle Helpers (Generic for Pico.css dialogs) ---
+
+    /**
+     * Toggles the visibility of a Pico.css dialog modal.
+     * @param {HTMLDialogElement} dialogElement - The <dialog> element to toggle.
+     * @param {Event} [event] - Optional event object to prevent default behavior.
+     */
     function toggleDialog(dialogElement, event) {
         if (!dialogElement) return;
         if (event) event.preventDefault();
         if (dialogElement.hasAttribute('open')) {
             dialogElement.removeAttribute('open');
-            document.body.style.overflow = '';
+            document.body.style.overflow = ''; // Restore scroll
         } else {
             dialogElement.setAttribute('open', '');
-            document.body.style.overflow = 'hidden';
+            document.body.style.overflow = 'hidden'; // Prevent scroll
         }
     }
-
+    // Make modal toggles globally accessible (defined in base.html)
     window.togglePickMentorModal = (event) => toggleDialog(pickMentorModal, event);
     window.toggleRejectModal = (event) => toggleDialog(rejectModal, event);
 
-    // --- Centralized API Call Helper (Modified for HttpOnly Cookies) ---
+    // --- Centralized API Call Helper (for protected endpoints) ---
+
+    /**
+     * Performs an authorized fetch request, automatically including HttpOnly cookies
+     * and handling 401 Unauthorized responses by logging out the user.
+     * @param {string} url - The URL to fetch.
+     * @param {RequestInit} [options={}] - Standard fetch options.
+     * @returns {Promise<Response>} The fetch response.
+     * @throws {Error} If unauthorized or a network error occurs.
+     */
     async function authorizedFetch(url, options = {}) {
         const headers = { ...options.headers };
 
-        // Determine Content-Type: Default to application/json if body exists and no Content-Type explicitly set
+        // Default Content-Type to application/json if body exists and not explicitly set
         if (options.body && !headers['Content-Type']) {
             headers['Content-Type'] = 'application/json';
         } else if (!options.body && ['GET', 'HEAD'].includes(options.method?.toUpperCase())) {
-            // If no body and method is GET/HEAD, ensure Content-Type is not set
+            // Remove Content-Type for GET/HEAD requests if no body
             delete headers['Content-Type'];
         }
         
-        // No manual Authorization header for HttpOnly cookies; browser handles sending 'credentials: include'.
-        // The server's 401 response is our signal for session expiry.
-
-        const response = await fetch(url, { ...options, headers, credentials: 'include' }); // 'include' to send HttpOnly cookies
+        const response = await fetch(url, { ...options, headers, credentials: 'include' });
 
         if (response.status === 401) {
             console.warn('Unauthorized access: Session expired or invalid. Redirecting to login.');
-            logout(); // Perform full logout sequence to clear client state and redirect
-            throw new Error('Unauthorized: API responded with 401.'); // Prevent further processing
+            logout(); // Trigger full logout sequence
+            throw new Error('Unauthorized: API responded with 401.'); 
         }
         return response;
     }
@@ -204,12 +287,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Register Form Logic ---
     if (registerForm) {
         hideFormMessage(registerResponseMessage);
-        if (passwordMatchFeedback) hideFormMessage(passwordMatchFeedback); // Clear password match feedback initially
+        if (passwordMatchFeedback) hideFormMessage(passwordMatchFeedback);
 
         registerForm.addEventListener('submit', async (event) => {
             event.preventDefault();
             hideFormMessage(registerResponseMessage);
-            if (passwordMatchFeedback) hideFormMessage(passwordMatchFeedback);
+            if (passwordMatchFeedback) hideFormMessage(passwordMatchFeedback); // Clear password mismatch on new submit
 
             const formData = new FormData(registerForm);
             const username = formData.get('username');
@@ -246,7 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Login Form Logic (Modified for HttpOnly Cookies) ---
+    // --- Login Form Logic ---
     if (loginForm) {
         hideFormMessage(loginResponseMessage);
         loginForm.addEventListener('submit', async (event) => {
@@ -262,26 +345,19 @@ document.addEventListener('DOMContentLoaded', () => {
             formBody.append('password', password);
 
             try {
-                // Backend /token endpoint should now set an HttpOnly cookie
-                // Frontend doesn't receive the token directly
                 const response = await fetch('/token', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
                     body: formBody.toString(),
-                    credentials: 'include' // Important to send/receive cookies
+                    credentials: 'include' 
                 });
 
-                // We don't get the token back in JS, just a success/failure
                 if (response.ok) {
-                    // Optimistically set user state, but /users/me will be the source of truth
-                    // A full page reload (window.location.href = '/') will trigger checkSessionAndFetchUser
-                    // which will then get the actual user data via /users/me.
-                    currentUser = { username: username }; 
-                    updateNavLinks();
+                    await checkSessionAndFetchUser(); // Refresh session state and nav links
                     showFormMessage(loginResponseMessage, `Login successful! Welcome, ${username}. Redirecting...`, 'success');
-                    window.location.href = '/'; 
+                    window.location.href = '/'; // Redirect to homepage
                 } else {
                     const result = await response.json();
                     showFormMessage(loginResponseMessage, `Error: ${result.detail || 'Could not log in.'}`, 'error');
@@ -295,7 +371,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // --- Mentor Signup Form Logic (Uses authorizedFetch) ---
+    // --- Mentor Signup Form Logic ---
     if (mentorSignupForm) {
         hideFormMessage(mentorResponseMessage);
 
@@ -311,7 +387,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const formData = new FormData(mentorSignupForm);
             const data = {};
 
-            data.name = formData.get('name'); // ADDED: Collect name
+            data.name = formData.get('name'); 
             data.bio = formData.get('bio');
             data.expertise = formData.get('expertise') || null;
             data.capacity = parseInt(formData.get('capacity'), 10);
@@ -324,29 +400,33 @@ document.addEventListener('DOMContentLoaded', () => {
             if (industries && industries.trim() !== '') {
                 preferences.industries = industries.split(',').map(item => item.trim()).filter(item => item !== '');
             } else {
-                preferences.industries = null; // Backend expects null for optional
+                preferences.industries = null;
             }
             const languages = formData.get('preferences_languages');
             if (languages && languages.trim() !== '') {
                 preferences.languages = languages.split(',').map(item => item.trim()).filter(item => item !== '');
             } else {
-                preferences.languages = null; // Backend expects null for optional
+                preferences.languages = null;
             }
             data.preferences = (preferences.industries || preferences.languages) ? preferences : null;
 
-
-            const demographicsJson = formData.get('demographics');
-            if (demographicsJson && demographicsJson.trim() !== '') {
-                try {
-                    data.demographics = JSON.parse(demographicsJson);
-                } catch (e) {
-                    showFormMessage(mentorResponseMessage, 'Error: Demographics must be valid JSON.', 'error');
-                    console.error('Demographics JSON parse error:', e);
-                    return;
-                }
-            } else {
-                data.demographics = null;
+            // --- NEW DEMOGRAPHICS HANDLING (individual fields) ---
+            const demographics = {};
+            const gender = formData.get('demographics_gender');
+            if (gender && gender.trim() !== '') {
+                demographics.gender = gender;
             }
+            const ethnicity = formData.get('demographics_ethnicity');
+            if (ethnicity && ethnicity.trim() !== '') {
+                demographics.ethnicity = ethnicity;
+            }
+            const yearsExperience = parseInt(formData.get('demographics_years_experience'), 10);
+            if (!isNaN(yearsExperience) && yearsExperience >= 0) {
+                demographics.years_experience = yearsExperience;
+            }
+
+            data.demographics = (Object.keys(demographics).length > 0) ? demographics : null;
+            // --- END NEW DEMOGRAPHICS HANDLING ---
 
             console.log('Sending mentor data:', data);
 
@@ -359,8 +439,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const result = await response.json();
 
                 if (response.ok) {
-                    showFormMessage(mentorResponseMessage, `Mentor ${result.name} registered successfully! Your ID is: ${result.id}. You can view your dashboard <a href="/dashboard/mentor/${result.id}" role="button" class="secondary">here</a>.`, 'success');
+                    showFormMessage(mentorResponseMessage, `Mentor ${result.name} registered successfully! Your ID is: ${result.id}. Redirecting to your dashboard...`, 'success');
                     mentorSignupForm.reset();
+                    window.location.href = `/dashboard/mentor/${result.id}`; 
                 } else {
                     showFormMessage(mentorResponseMessage, `Error: ${result.detail || 'Could not register mentor.'}`, 'error');
                     console.error('API Error:', result);
@@ -372,15 +453,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Mentee Signup Form Logic (Uses authorizedFetch) ---
+    // --- Mentee Signup Form Logic ---
     if (menteeSignupForm) {
         hideFormMessage(menteeResponseMessage);
 
         menteeSignupForm.addEventListener('submit', async (event) => {
             event.preventDefault();
             hideFormMessage(menteeResponseMessage);
-            if (recommendationsSection) recommendationsSection.hidden = true;
-            if (mentorRecommendationsDiv) mentorRecommendationsDiv.innerHTML = '';
+            // Recommendations section is no longer on this page, only on dashboard.
+            // So these can be removed from here.
+            // if (recommendationsSection) recommendationsSection.hidden = true;
+            // if (mentorRecommendationsDiv) mentorRecommendationsDiv.innerHTML = '';
 
 
             if (!isAuthenticated()) {
@@ -391,7 +474,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const formData = new FormData(menteeSignupForm);
             const data = {};
 
-            data.name = formData.get('name'); // ADDED: Collect name
+            data.name = formData.get('name'); 
             data.bio = formData.get('bio');
             data.goals = formData.get('goals');
             data.mentorship_style = formData.get('mentorship_style') || null;
@@ -404,13 +487,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (industries && industries.trim() !== '') {
                 preferences.industries = industries.split(',').map(item => item.trim()).filter(item => item !== '');
             } else {
-                preferences.industries = null; // Backend expects null for optional
+                preferences.industries = null;
             }
             const languages = formData.get('preferences_languages');
             if (languages && languages.trim() !== '') {
                 preferences.languages = languages.split(',').map(item => item.trim()).filter(item => item !== '');
             } else {
-                preferences.languages = null; // Backend expects null for optional
+                preferences.languages = null;
             }
             data.preferences = (preferences.industries || preferences.languages) ? preferences : null;
 
@@ -426,14 +509,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (response.ok) {
                     currentMenteeId = result.mentee_id;
-                    showFormMessage(menteeResponseMessage, `Mentee ${result.name} registered. Your ID is: ${currentMenteeId}. ${result.message} You can view your dashboard <a href="/dashboard/mentee/${currentMenteeId}" role="button" class="secondary">here</a>.`, 'success');
-                    
-                    if (result.recommendations && result.recommendations.length > 0) {
-                        displayRecommendations(result.recommendations);
-                    } else {
-                        if (recommendationsMessage) recommendationsMessage.textContent = result.message || "No suitable mentors found based on your criteria. Please try broadening your preferences.";
-                        if (recommendationsSection) recommendationsSection.hidden = false;
-                    }
+                    showFormMessage(menteeResponseMessage, `Mentee ${result.mentee_name} registered. Your ID is: ${currentMenteeId}. Redirecting to your dashboard...`, 'success');
+                    window.location.href = `/dashboard/mentee/${currentMenteeId}`;
                 } else {
                     showFormMessage(menteeResponseMessage, `Error: ${result.detail || 'Could not find matches.'}`, 'error');
                     console.error('API Error:', result);
@@ -445,20 +522,72 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Function to Display Recommendations (for Mentee Signup) ---
+    // --- NEW: Find New Mentors Button on Mentee Dashboard ---
+    if (findNewMentorsBtn) {
+        findNewMentorsBtn.addEventListener('click', async () => {
+            if (!isAuthenticated()) {
+                showFormMessage(menteeRequestsMessage, 'You must be logged in to find mentors.', 'error');
+                return;
+            }
+            if (!currentMenteeDashboardId) {
+                showFormMessage(menteeRequestsMessage, 'Mentee profile not loaded.', 'error');
+                return;
+            }
+
+            hideFormMessage(menteeRequestsMessage); 
+            if (recommendationsSection) recommendationsSection.hidden = true; // Hide old recommendations
+            if (mentorRecommendationsDiv) mentorRecommendationsDiv.innerHTML = '<p aria-busy="true">Finding mentors...</p>'; // Show loading indicator
+
+
+            try {
+                // Fetch mentee's current profile from backend to use for matching
+                const profileResponse = await fetch(`/mentees/${currentMenteeDashboardId}`, { method: 'GET' });
+                if (!profileResponse.ok) {
+                    const errorDetail = await profileResponse.json().then(data => data.detail || 'Unknown error').catch(() => 'Unknown error during profile fetch');
+                    throw new Error(`Failed to fetch mentee profile for matching: ${errorDetail}`);
+                }
+                const menteeProfileData = await profileResponse.json();
+
+                // Call the /match/ endpoint with this data
+                const response = await authorizedFetch('/match/', {
+                    method: 'POST',
+                    body: JSON.stringify(menteeProfileData), // Send current profile data for matching
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    if (result.recommendations && result.recommendations.length > 0) {
+                        displayRecommendations(result.recommendations); // This function will display in recommendationsSection
+                    } else {
+                        if (recommendationsMessage) recommendationsMessage.textContent = result.message || "No suitable mentors found based on your criteria. Please try broadening your preferences.";
+                        if (recommendationsSection) recommendationsSection.hidden = false;
+                    }
+                    showFormMessage(menteeRequestsMessage, result.message, 'success');
+                } else {
+                    showFormMessage(menteeRequestsMessage, `Error finding matches: ${result.detail || 'Could not find matches.'}`, 'error');
+                    console.error('API Error:', result);
+                }
+            } catch (error) {
+                showFormMessage(menteeRequestsMessage, `Network error or unable to connect to server for finding matches: ${error.message}`, 'error');
+                console.error('Fetch error for finding matches:', error);
+            }
+        });
+    }
+
+    // --- Function to Display Recommendations (now called on dashboard) ---
     function displayRecommendations(recommendations) {
-        if (mentorRecommendationsDiv) mentorRecommendationsDiv.innerHTML = '';
+        if (mentorRecommendationsDiv) mentorRecommendationsDiv.innerHTML = ''; // Clear loading indicator
         if (recommendationsMessage) recommendationsMessage.textContent = "Here are your top mentor recommendations:";
         
         recommendations.forEach(mentor => {
             const card = document.createElement('article');
-            // Improved bio snippet handling to avoid '...' for short bios in JS
             const rawBio = mentor.mentor_bio_snippet || '';
             const bioSnippet = rawBio.length > 100 ? rawBio.substring(0, 100) + '...' : rawBio;
 
             card.innerHTML = `
-                <h4>${mentor.mentor_name || 'Unknown Mentor'}</h4> {# Display mentor's name #}
-                <p>${bioSnippet}</p> {# Bio snippet is now separate #}
+                <h4>${mentor.mentor_name || 'Unknown Mentor'}</h4>
+                <p>${bioSnippet}</p>
                 <p><strong>Expertise:</strong> ${mentor.mentor_details.expertise || 'Not specified'}</p>
                 <p><strong>Capacity:</strong> ${mentor.mentor_details.capacity_info || 'N/A'}</p>
                 <p><strong>Match Score:</strong> ${mentor.re_rank_score ? mentor.re_rank_score.toFixed(2) : 'N/A'}</p>
@@ -467,7 +596,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     ${mentor.explanations.map(exp => `<li>${exp}</li>`).join('')}
                 </ul>
                 <footer>
-                    <button type="button" class="pick-mentor-btn" data-mentor-id="${mentor.mentor_id}" data-mentor-name="${mentor.mentor_name || 'Unknown Mentor'}">Pick This Mentor</button> {# Pass mentor name to dataset #}
+                    <button type="button" class="pick-mentor-btn" data-mentor-id="${mentor.mentor_id}" data-mentor-name="${mentor.mentor_name || 'Unknown Mentor'}">Pick This Mentor</button>
                 </footer>
             `;
             if (mentorRecommendationsDiv) mentorRecommendationsDiv.appendChild(card);
@@ -477,7 +606,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.pick-mentor-btn').forEach(button => {
             button.addEventListener('click', (event) => {
                 selectedMentorId = parseInt(event.currentTarget.dataset.mentorId, 10);
-                // Use data-mentor-name for modal display
                 if (modalMentorName) modalMentorName.textContent = event.currentTarget.dataset.mentorName;
                 if (modalRequestMessage) modalRequestMessage.value = '';
                 togglePickMentorModal();
@@ -485,45 +613,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Logic for Confirming Mentor Pick in Modal (Uses authorizedFetch) ---
-    if (confirmPickMentorBtn) {
-        confirmPickMentorBtn.addEventListener('click', async (event) => {
-            if (!currentMenteeId || !selectedMentorId) {
-                showFormMessage(menteeResponseMessage, 'Error: Mentee or mentor ID missing for request.', 'error');
-                togglePickMentorModal();
-                return;
-            }
-
-            const message = modalRequestMessage ? modalRequestMessage.value : '';
-            const url = `/mentee/${currentMenteeId}/pick_mentor/${selectedMentorId}`;
-            // For HttpOnly cookies, query params are fine for simple strings.
-            const queryParams = message ? `?request_message=${encodeURIComponent(message)}` : '';
-
-            try {
-                const response = await authorizedFetch(url + queryParams, {
-                    method: 'POST',
-                    // No body needed for query params with POST and queryParams
-                });
-
-                const result = await response.json();
-
-                if (response.ok) {
-                    showFormMessage(menteeResponseMessage, `Mentorship request to Mentor ID ${selectedMentorId} sent successfully! Request ID: ${result.id}`, 'success');
-                    // Consider refreshing mentee dashboard requests here
-                } else {
-                    showFormMessage(menteeResponseMessage, `Error sending request: ${result.detail || 'Could not send mentorship request.'}`, 'error');
-                    console.error('API Error:', result);
-                }
-            } catch (error) {
-                showFormMessage(menteeResponseMessage, 'Network error or unable to connect to server for picking mentor.', 'error');
-                console.error('Fetch error for picking mentor:', error);
-            } finally {
-                togglePickMentorModal();
-            }
-        });
-    }
-
-    // --- Mentor Dashboard Logic (Uses authorizedFetch) ---
+    // --- Mentor Dashboard Logic ---
     const mentorPathSegments = window.location.pathname.split('/');
     if (mentorPathSegments[1] === 'dashboard' && mentorPathSegments[2] === 'mentor' && mentorPathSegments[3]) {
         currentMentorDashboardId = parseInt(mentorPathSegments[3], 10);
@@ -535,9 +625,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    /**
+     * Fetches and displays details for a specific mentor on their dashboard.
+     * @param {number} mentorId - The ID of the mentor.
+     */
     async function fetchMentorDetails(mentorId) {
         if (!mentorDashboardProfileSummary || !mentorProfileMessage || !mentorDashboardName) return;
-        hideFormMessage(mentorProfileMessage);
+        hideFormMessage(mentorProfileMessage); // Hide previous messages
 
         try {
             const response = await fetch(`/mentors/${mentorId}`, { method: 'GET' });
@@ -547,15 +641,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 mentorDashboardProfileSummary.innerHTML = `
                     <h2>Your Profile</h2>
                     <p><strong>Mentor ID:</strong> ${mentor.id}</p>
-                    <p><strong>Name:</strong> ${mentor.name}</p> {# Display mentor's name #}
+                    <p><strong>Name:</strong> ${mentor.name}</p>
                     <p><strong>Bio:</strong> ${mentor.bio}</p>
                     <p><strong>Expertise:</strong> ${mentor.expertise || 'Not specified'}</p>
                     <p><strong>Capacity:</strong> ${mentor.current_mentees} / ${mentor.capacity} active mentees</p>
                     <p><strong>Availability:</strong> ${mentor.availability?.hours_per_month || 'Not specified'} hours/month</p>
                     <p><strong>Preferences:</strong> Industries: ${(mentor.preferences?.industries || []).join(', ') || 'Any'}, Languages: ${(mentor.preferences?.languages || []).join(', ') || 'Any'}</p>
-                    ${mentor.demographics ? `<p><strong>Demographics:</strong> ${JSON.stringify(mentor.demographics)}</p>` : ''}
+                    ${mentor.demographics ? `<p><strong>Demographics:</strong> Gender: ${mentor.demographics.gender || 'N/A'}, Ethnicity: ${mentor.demographics.ethnicity || 'N/A'}, Years Exp: ${mentor.demographics.years_experience || 'N/A'}</p>` : ''}
                 `;
-                mentorDashboardProfileSummary.appendChild(mentorProfileMessage);
+                // Re-append the message element to ensure it's available for future showFormMessage calls
+                // (innerHTML replaces content, so we ensure the message <p> is still there)
+                if (!mentorDashboardProfileSummary.contains(mentorProfileMessage)) {
+                    mentorDashboardProfileSummary.appendChild(mentorProfileMessage);
+                }
             } else {
                 showFormMessage(mentorProfileMessage, `Failed to load mentor profile details: ${response.statusText}. Please ensure the ID is correct.`, 'error');
                 console.error(`Failed to fetch mentor details for ID ${mentorId}:`, response.status, await response.text());
@@ -566,11 +664,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-
+    /**
+     * Fetches and displays mentorship requests for a specific mentor.
+     * @param {number} mentorId - The ID of the mentor.
+     */
     async function fetchMentorshipRequests(mentorId) {
         if (!mentorRequestsList || !requestsMessage) return;
         hideFormMessage(requestsMessage);
-        mentorRequestsList.innerHTML = '<p>Loading your requests...</p>';
+        mentorRequestsList.innerHTML = '<p aria-busy="true">Loading your requests...</p>'; // Show loading indicator
 
         try {
             const response = await authorizedFetch(`/api/mentors/${mentorId}/requests`, { method: 'GET' });
@@ -594,6 +695,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    /**
+     * Renders mentorship request cards for a mentor, categorized by status.
+     * @param {Array<Object>} requests - List of mentorship request objects.
+     */
     function renderMentorMentorshipRequests(requests) {
         if (mentorRequestsList) mentorRequestsList.innerHTML = '';
 
@@ -617,7 +722,7 @@ document.addEventListener('DOMContentLoaded', () => {
             categorySection.appendChild(header);
 
             const cardsContainer = document.createElement('div');
-            cardsContainer.className = 'cards-container';
+            cardsContainer.className = 'grid'; 
             requestsArray.forEach(request => {
                 cardsContainer.appendChild(createMentorRequestCard(request, type));
             });
@@ -641,6 +746,12 @@ document.addEventListener('DOMContentLoaded', () => {
         attachMentorRequestButtonListeners();
     }
 
+    /**
+     * Creates an HTML article card for a single mentorship request (mentor's view).
+     * @param {Object} request - The mentorship request object.
+     * @param {string} type - Category type for styling.
+     * @returns {HTMLElement} The created article element.
+     */
     function createMentorRequestCard(request, type) {
         const card = document.createElement('article');
         card.setAttribute('data-request-status', request.status);
@@ -648,7 +759,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let cardContent = `
             <h5>Request ID: ${request.id}</h5>
-            <p><strong>Mentee:</strong> ${request.mentee_name || request.mentee_id}</p> {# Display mentee's name or ID fallback #}
+            <p><strong>Mentee:</strong> <a href="/dashboard/mentee/${request.mentee_id}" class="secondary">${request.mentee_name || request.mentee_id}</a></p>
             <p><strong>Status:</strong> <mark class="${statusClass}">${request.status}</mark></p>
             <p><strong>Requested:</strong> ${new Date(request.request_date).toLocaleDateString()}</p>
             ${request.request_message ? `<p><strong>Message:</strong> <em>${request.request_message}</em></p>` : ''}
@@ -674,6 +785,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return card;
     }
 
+    /**
+     * Attaches event listeners to action buttons on mentor request cards.
+     */
     function attachMentorRequestButtonListeners() {
         document.querySelectorAll('.request-action-btn').forEach(button => {
             button.addEventListener('click', async (event) => {
@@ -691,6 +805,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    /**
+     * Performs a mentor action (accept, reject, complete) on a mentorship request.
+     * @param {number} mentorId - The ID of the mentor performing the action.
+     * @param {number} requestId - The ID of the mentorship request.
+     * @param {string} action - The action to perform ('accept', 'reject', 'complete').
+     * @param {string} [rejectionReason=null] - Optional reason for rejection.
+     */
     async function performMentorAction(mentorId, requestId, action, rejectionReason = null) {
         let endpoint = '';
         let method = 'PUT';
@@ -730,31 +851,37 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Listener for confirming rejection in the modal
     if (confirmRejectBtn) {
         confirmRejectBtn.addEventListener('click', async (event) => {
             const rejectionReason = rejectionReasonInput ? rejectionReasonInput.value : '';
             await performMentorAction(currentMentorDashboardId, currentRequestIdForAction, 'reject', rejectionReason);
             toggleRejectModal();
-            if (rejectionReasonInput) rejectionReasonInput.value = '';
+            if (rejectionReasonInput) rejectionReasonInput.value = ''; // Clear input after use
         });
     }
 
 
-    // --- Mentee Dashboard Logic (Uses authorizedFetch) ---
+    // --- Mentee Dashboard Logic ---
     const menteePathSegments = window.location.pathname.split('/');
     if (menteePathSegments[1] === 'dashboard' && menteePathSegments[2] === 'mentee' && menteePathSegments[3]) {
         currentMenteeDashboardId = parseInt(menteePathSegments[3], 10);
         if (!isNaN(currentMenteeDashboardId)) {
             fetchMenteeDetails(currentMenteeDashboardId);
             fetchMenteeMentorshipRequests(currentMenteeDashboardId);
+            // The "Find New Mentors" button listener (`findNewMentorsBtn`) is attached globally if it exists.
         } else {
             showFormMessage(menteeProfileMessage, 'Invalid mentee ID in URL.', 'error');
         }
     }
 
+    /**
+     * Fetches and displays details for a specific mentee on their dashboard.
+     * @param {number} menteeId - The ID of the mentee.
+     */
     async function fetchMenteeDetails(menteeId) {
         if (!menteeDashboardProfileSummary || !menteeProfileMessage || !menteeDashboardName) return;
-        hideFormMessage(menteeProfileMessage);
+        hideFormMessage(menteeProfileMessage); 
 
         try {
             const response = await fetch(`/mentees/${menteeId}`, { method: 'GET' });
@@ -764,14 +891,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 menteeDashboardProfileSummary.innerHTML = `
                     <h2>Your Profile</h2>
                     <p><strong>Mentee ID:</strong> ${mentee.id}</p>
-                    <p><strong>Name:</strong> ${mentee.name}</p> {# Display mentee's name #}
+                    <p><strong>Name:</strong> ${mentee.name}</p>
                     <p><strong>Bio:</strong> ${mentee.bio}</p>
                     <p><strong>Goals:</strong> ${mentee.goals || 'Not specified'}</p>
                     <p><strong>Mentorship Style:</strong> ${mentee.mentorship_style || 'Not specified'}</p>
                     <p><strong>Availability:</strong> ${mentee.availability?.hours_per_month || 'Not specified'} hours/month</p>
                     <p><strong>Preferences:</strong> Industries: ${(mentee.preferences?.industries || []).join(', ') || 'Any'}, Languages: ${(mentee.preferences?.languages || []).join(', ') || 'Any'}</p>
                 `;
-                menteeDashboardProfileSummary.appendChild(menteeProfileMessage);
+                // Re-append the message element to ensure it's available for future showFormMessage calls
+                if (!menteeDashboardProfileSummary.contains(menteeProfileMessage)) {
+                    menteeDashboardProfileSummary.appendChild(menteeProfileMessage);
+                }
             } else {
                 showFormMessage(menteeProfileMessage, `Failed to load mentee profile details: ${response.statusText}. Please ensure the ID is correct.`, 'error');
                 console.error(`Failed to fetch mentee details for ID ${menteeId}:`, response.status, await response.text());
@@ -782,11 +912,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-
+    /**
+     * Fetches and displays mentorship requests for a specific mentee.
+     * @param {number} menteeId - The ID of the mentee.
+     */
     async function fetchMenteeMentorshipRequests(menteeId) {
         if (!menteeDashboardRequestsList || !menteeRequestsMessage) return;
         hideFormMessage(menteeRequestsMessage);
-        menteeDashboardRequestsList.innerHTML = '<p>Loading your requests...</p>';
+        menteeDashboardRequestsList.innerHTML = '<p aria-busy="true">Loading your requests...</p>'; // Show loading indicator
 
         try {
             const response = await authorizedFetch(`/api/mentees/${menteeId}/requests`, { method: 'GET' });
@@ -810,6 +943,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    /**
+     * Renders mentorship request cards for a mentee, categorized by status.
+     * @param {Array<Object>} requests - List of mentorship request objects.
+     */
     function renderMenteeMentorshipRequests(requests) {
         if (menteeDashboardRequestsList) menteeDashboardRequestsList.innerHTML = '';
 
@@ -833,7 +970,7 @@ document.addEventListener('DOMContentLoaded', () => {
             categorySection.appendChild(header);
 
             const cardsContainer = document.createElement('div');
-            cardsContainer.className = 'cards-container';
+            cardsContainer.className = 'grid'; 
             requestsArray.forEach(request => {
                 cardsContainer.appendChild(createMenteeRequestCard(request, type));
             });
@@ -857,6 +994,12 @@ document.addEventListener('DOMContentLoaded', () => {
         attachMenteeRequestButtonListeners();
     }
 
+    /**
+     * Creates an HTML article card for a single mentorship request (mentee's view).
+     * @param {Object} request - The mentorship request object.
+     * @param {string} type - Category type for styling.
+     * @returns {HTMLElement} The created article element.
+     */
     function createMenteeRequestCard(request, type) {
         const card = document.createElement('article');
         card.setAttribute('data-request-status', request.status);
@@ -864,7 +1007,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let cardContent = `
             <h5>Request ID: ${request.id}</h5>
-            <p><strong>Mentor:</strong> ${request.mentor_name || request.mentor_id}</p> {# Display mentor's name or ID fallback #}
+            <p><strong>Mentor:</strong> <a href="/dashboard/mentor/${request.mentor_id}" class="secondary">${request.mentor_name || request.mentor_id}</a></p>
             <p><strong>Status:</strong> <mark class="${statusClass}">${request.status}</mark></p>
             <p><strong>Requested:</strong> ${new Date(request.request_date).toLocaleDateString()}</p>
             ${request.request_message ? `<p><strong>Your Message:</strong> <em>${request.request_message}</em></p>` : ''}
@@ -888,6 +1031,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return card;
     }
 
+    /**
+     * Attaches event listeners to action buttons on mentee request cards.
+     */
     function attachMenteeRequestButtonListeners() {
         document.querySelectorAll('.mentee-request-action-btn').forEach(button => {
             button.addEventListener('click', async (event) => {
@@ -900,6 +1046,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    /**
+     * Performs a mentee action (cancel, conclude) on a mentorship request.
+     * @param {number} menteeId - The ID of the mentee performing the action.
+     * @param {number} requestId - The ID of the mentorship request.
+     * @param {string} action - The action to perform ('cancel', 'conclude').
+     */
     async function performMenteeAction(menteeId, requestId, action) {
         let endpoint = '';
         let method = 'PUT';
@@ -921,8 +1073,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (response.ok) {
                 showFormMessage(menteeRequestsMessage, `Request ${requestId} ${action.toUpperCase()}ED successfully!`, 'success');
-                fetchMenteeMentorshipRequests(menteeId);
-                fetchMenteeDetails(menteeId); 
+                fetchMenteeMentorshipRequests(menteeId); // Refresh requests
+                fetchMenteeDetails(menteeId); // Refresh mentee details 
             } else {
                 showFormMessage(menteeRequestsMessage, `Error performing ${action} for request ${requestId}: ${result.detail || 'Unknown error.'}`, 'error');
                 console.error(`API Error for ${action} request ${requestId}:`, result);
@@ -933,7 +1085,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Feedback Form Logic (Uses authorizedFetch) ---
+    // --- Feedback Form Logic ---
     if (feedbackForm) {
         hideFormMessage(feedbackResponseMessage);
         if (ratingFeedback) hideFormMessage(ratingFeedback);

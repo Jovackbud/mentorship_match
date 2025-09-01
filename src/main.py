@@ -7,7 +7,7 @@ from starlette.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import List, Dict, Any, Optional, cast
-from sqlalchemy.orm import Session, load_only, joinedload
+from sqlalchemy.orm import Session, load_only, joinedload # ADDED load_only, joinedload
 from datetime import datetime, timedelta, timezone
 
 from .config import get_settings
@@ -114,7 +114,7 @@ async def mentor_dashboard_page(
     
     return templates.TemplateResponse(
         "mentor_dashboard.html", 
-        {"request": request, "title": f"Mentor Dashboard - {mentor.name}", "mentor_id": mentor_id}
+        {"request": request, "title": mentor.name, "mentor_id": mentor_id}
     )
 
 @app.get("/dashboard/mentee/{mentee_id}", response_class=HTMLResponse)
@@ -133,7 +133,7 @@ async def mentee_dashboard_page(
     
     return templates.TemplateResponse(
         "mentee_dashboard.html", 
-        {"request": request, "title": f"Mentee Dashboard - {mentee.name}", "mentee_id": mentee_id}
+        {"request": request, "title": mentee.name, "mentee_id": mentee_id}
     )
 
 # --- User Authentication API Endpoints ---
@@ -156,7 +156,7 @@ async def register_user(user: schemas.UserCreate, db: Session = Depends(database
 
 @app.post("/token")
 async def login_for_access_token(
-    response: Response, # This is correct
+    response: Response, # Moved argument for Python SyntaxError fix
     form_data: OAuth2PasswordRequestForm = Depends(), 
     db: Session = Depends(database.get_db)
 ):
@@ -168,44 +168,52 @@ async def login_for_access_token(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
+            headers={"WWW-Authenticate": "Bearer"}, # Still include for Swagger UI compatibility
         )
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     
+    # Calculate the expiration datetime as a timezone-aware UTC object (ValueError fix)
     expire_time_utc = datetime.now(timezone.utc) + access_token_expires
     
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
     
-    # This line correctly adds the Set-Cookie header to the 'response' object
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
-        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        expires=expire_time_utc,
-        samesite="lax",
-        secure=settings.COOKIE_SECURE,
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60, # Convert minutes to seconds
+        expires=expire_time_utc, # Use the timezone-aware object here
+        samesite="lax", # Recommended for CSRF protection
+        secure=settings.COOKIE_SECURE, # Set to True in production (HTTPS)
     )
     logger.debug(f"Cookie set: key='access_token', value='{access_token[:10]}...', httponly=True, max_age={settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60}, expires={expire_time_utc}, samesite='lax', secure={settings.COOKIE_SECURE}")
     logger.info(f"User {user.username} logged in successfully, HttpOnly cookie set.")
     
-    # --- THIS IS THE CRUCIAL CHANGE ---
-    # Create a dictionary for the content
-    response_content = {"message": "Login successful"}
-    
     # Return a JSONResponse, explicitly passing the headers from the 'response' object
-    # that `response.set_cookie` modified.
-    return JSONResponse(content=response_content, status_code=status.HTTP_200_OK, headers=response.headers)
+    # that `response.set_cookie` modified, to ensure Set-Cookie header is sent.
+    return JSONResponse(content={"message": "Login successful"}, status_code=status.HTTP_200_OK, headers=response.headers)
 
 @app.get("/users/me/", response_model=schemas.UserResponse)
-async def read_users_me(current_user: models.User = Depends(get_current_user)):
+async def read_users_me(current_user: models.User = Depends(get_current_user), db: Session = Depends(database.get_db)):
     """
-    Retrieves the current authenticated user's profile.
+    Retrieves the current authenticated user's profile and associated mentor/mentee IDs.
     Requires a valid JWT token (HttpOnly cookie).
     """
-    return current_user
+    # Fetch associated profiles
+    mentor_profile = db.query(models.Mentor).filter(models.Mentor.user_id == current_user.id).first()
+    mentee_profile = db.query(models.Mentee).filter(models.Mentee.user_id == current_user.id).first()
+
+    return schemas.UserResponse(
+        id=current_user.id,
+        username=current_user.username,
+        is_active=current_user.is_active,
+        created_at=current_user.created_at,
+        updated_at=current_user.updated_at,
+        mentor_profile_id=mentor_profile.id if mentor_profile else None,
+        mentee_profile_id=mentee_profile.id if mentee_profile else None,
+    )
 
 @app.post("/logout", status_code=status.HTTP_200_OK)
 async def logout_user(response: Response):
@@ -217,9 +225,9 @@ async def logout_user(response: Response):
     return {"message": "Logged out successfully"}
 
 
-# --- Profile Retrieval API Endpoints ---
-# These remain public as they only retrieve data, not modify.
-# Frontend JS will make calls to the /api/.../requests endpoints for user-specific data
+# --- Profile Retrieval API Endpoints (Public) ---
+# These endpoints are public for simple data retrieval.
+# Frontend JS makes separate authenticated calls to /api/.../requests for user-specific dashboard data.
 @app.get("/mentors/{mentor_id}", response_model=schemas.MentorResponse)
 async def read_mentor_profile(mentor_id: int, db: Session = Depends(database.get_db)):
     """
@@ -253,14 +261,9 @@ async def get_mentor_requests(
     Requires authentication AND that current_user owns this mentor profile.
     """
     # The owned_mentor dependency already verified ownership and fetched the mentor object.
-    # Eagerly load mentee relationship for names
+    # Eagerly load mentee relationship for names to avoid N+1 queries.
     requests = db.query(models.MentorshipRequest).options(
-        load_only(models.MentorshipRequest.id, models.MentorshipRequest.mentee_id, 
-                  models.MentorshipRequest.mentor_id, models.MentorshipRequest.status,
-                  models.MentorshipRequest.request_message, models.MentorshipRequest.request_date,
-                  models.MentorshipRequest.acceptance_date, models.MentorshipRequest.rejection_reason,
-                  models.MentorshipRequest.completed_date),
-        joinedload(models.MentorshipRequest.mentee)
+        joinedload(models.MentorshipRequest.mentee) # Load mentee for its name
     ).filter(models.MentorshipRequest.mentor_id == owned_mentor.id).all()
 
     enriched_requests = []
@@ -270,7 +273,7 @@ async def get_mentor_requests(
         if req.mentee: 
             req_dict['mentee_name'] = req.mentee.name
         else: # Fallback in case mentee was deleted with SET NULL on Feedback
-            req_dict['mentee_name'] = f"Mentee {req.mentee_id}"
+            req_dict['mentee_name'] = f"Mentee {req.mentee_id}" # Display ID if name not found
         enriched_requests.append(req_dict)
     return enriched_requests
 
@@ -284,14 +287,9 @@ async def get_mentee_requests(
     Requires authentication AND that current_user owns this mentee profile.
     """
     # The owned_mentee dependency already verified ownership and fetched the mentee object.
-    # Eagerly load mentor relationship for names
+    # Eagerly load mentor relationship for names to avoid N+1 queries.
     requests = db.query(models.MentorshipRequest).options(
-        load_only(models.MentorshipRequest.id, models.MentorshipRequest.mentee_id, 
-                  models.MentorshipRequest.mentor_id, models.MentorshipRequest.status,
-                  models.MentorshipRequest.request_message, models.MentorshipRequest.request_date,
-                  models.MentorshipRequest.acceptance_date, models.MentorshipRequest.rejection_reason,
-                  models.MentorshipRequest.completed_date),
-        joinedload(models.MentorshipRequest.mentor)
+        joinedload(models.MentorshipRequest.mentor) # Load mentor for its name
     ).filter(models.MentorshipRequest.mentee_id == owned_mentee.id).all()
     
     enriched_requests = []
@@ -301,7 +299,7 @@ async def get_mentee_requests(
         if req.mentor: 
             req_dict['mentor_name'] = req.mentor.name
         else: # Fallback in case mentor was deleted with SET NULL on Feedback
-            req_dict['mentor_name'] = f"Mentor {req.mentor_id}"
+            req_dict['mentor_name'] = f"Mentor {req.mentor_id}" # Display ID if name not found
         enriched_requests.append(req_dict)
     return enriched_requests
 
@@ -332,7 +330,7 @@ async def create_mentor(
             current_mentees=0,
             availability=mentor_data.availability.model_dump(mode='json') if mentor_data.availability else None,
             preferences=mentor_data.preferences.model_dump(mode='json') if mentor_data.preferences else None,
-            demographics=mentor_data.demographics
+            demographics=mentor_data.demographics # Direct Dict from Pydantic input
         )
         db.add(db_mentor)
         db.commit()
@@ -378,8 +376,11 @@ async def update_mentor(
     update_data = mentor_data.model_dump(exclude_unset=True)
 
     for key, value in update_data.items():
-        if key == 'availability' or key == 'preferences' or key == 'demographics':
-            setattr(db_mentor, key, value if value is not None else None)
+        if key == 'availability' or key == 'preferences':
+            # Handle Pydantic models for nested JSONB fields
+            setattr(db_mentor, key, value.model_dump(mode='json') if value is not None else None)
+        elif key == 'demographics':
+            setattr(db_mentor, key, value if value is not None else None) # Direct Dict from Pydantic input
         elif key in ['bio', 'expertise', 'name']: # ADDED 'name' here for change detection
             if getattr(db_mentor, key) != value:
                 text_fields_changed = True
@@ -430,7 +431,7 @@ async def delete_mentor(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail=f"Mentor has {active_mentees_for_mentor} active mentees. Cannot delete until relationships are ended (by REJECT or COMPLETE).")
 
-    db.delete(db_mentor)
+    db.delete(db_mentor) # This delete will now cascade to MentorshipRequest thanks to model fix
     db.commit()
 
     faiss_index_manager.remove_embedding(db_mentor.id) # Use the ID from the authorized mentor object
@@ -468,7 +469,7 @@ async def get_matches(
             updated_at=datetime.now(timezone.utc)
         )
         db.add(db_mentee)
-        db.flush()
+        db.flush() # Flush to get db_mentee.id before commit, needed for embedding if we store it
         mentee_needs_embedding_update = True
         logger.info(f"New mentee profile created for user_id {current_user.id} with mentee_id {db_mentee.id} (Name: {db_mentee.name}).")
     else:
@@ -479,7 +480,7 @@ async def get_matches(
         update_fields = mentee_profile_data.model_dump(exclude_unset=True)
         for key, value in update_fields.items():
             if key in ['availability', 'preferences']:
-                setattr(db_mentee, key, value if value is not None else None)
+                setattr(db_mentee, key, value.model_dump(mode='json') if value is not None else None)
             elif key in ['bio', 'goals', 'mentorship_style', 'name']: # ADDED 'name' here for change detection
                 setattr(db_mentee, key, value)
             
@@ -505,7 +506,7 @@ async def get_matches(
 
         if mentee_embedding is None or not mentee_embedding:
             logger.error(f"Failed to generate embedding for mentee {db_mentee.id}. Match quality might be affected.")
-            db_mentee.embedding = None # Clear old embedding if new one fails or couldn't be generated
+            db_mentee.embedding = None
         else:
             db_mentee.embedding = cast(List[float], mentee_embedding[0])
             db.add(db_mentee)
@@ -523,6 +524,10 @@ async def get_matches(
         'mentorship_style': db_mentee.mentorship_style
     }
     recommendations = matching_service_instance.get_mentor_recommendations(mentee_profile_for_matching)
+
+    # Enhance recommendations with mentor_name before returning
+    # The redundant loop to fetch mentor name was removed as it's now handled by matching_service.py and post_processing.py
+    # and schemas.MatchedMentor expects mentor_name directly from there.
         
     matched_mentors_response = [
         schemas.MatchedMentor(**rec) for rec in recommendations
@@ -530,14 +535,14 @@ async def get_matches(
 
     return schemas.MatchResponse(
         mentee_id=generated_mentee_id,
-        mentee_name=db_mentee.name,
+        mentee_name=db_mentee.name, # ADDED name for MatchResponse
         recommendations=matched_mentors_response,
         message="Top mentor recommendations generated successfully."
     )
 
 @app.post("/mentee/{mentee_id}/pick_mentor/{mentor_id}", response_model=schemas.MentorshipRequestResponse, status_code=status.HTTP_201_CREATED)
 async def pick_mentor(
-    mentor_id: int,
+    mentor_id: int, # Moved argument for Python SyntaxError fix
     request_message: Optional[str] = Query(None, description="Optional message for the mentor."),
     db_mentee: models.Mentee = Depends(dependencies.get_owned_mentee_profile), # AUTHORIZATION CHECK
     db: Session = Depends(database.get_db), # Keep db for specific queries

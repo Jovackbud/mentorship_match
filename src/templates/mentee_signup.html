@@ -60,29 +60,5 @@
             <p id="mentee-response-message" aria-live="polite" style="margin-top: 1rem;" hidden></p>
         </form>
 
-        <section id="recommendations-section" hidden>
-            <h2>Your Mentor Recommendations</h2>
-            <p class="lead" id="recommendations-message"></p>
-            <div id="mentor-recommendations" class="grid">
-                <!-- Mentor recommendations will be injected here by JavaScript -->
-            </div>
-        </section>
-
-        <!-- Modal for picking a mentor (using Pico.css modal) -->
-        <dialog id="pick-mentor-modal">
-            <article>
-                <a href="#close" aria-label="Close" class="close" onclick="togglePickMentorModal(event)"></a>
-                <h3>Confirm Mentorship Request</h3>
-                <p>You are about to send a request to <strong id="modal-mentor-name"></strong>.</p>
-                <label for="modal-request-message">
-                    Message to Mentor (optional):
-                    <textarea id="modal-request-message" rows="3" placeholder="I'm excited to learn from you..."></textarea>
-                </label>
-                <footer>
-                    <button type="button" class="secondary" onclick="togglePickMentorModal(event)">Cancel</button>
-                    <button type="button" id="confirm-pick-mentor">Send Request</button>
-                </footer>
-            </article>
-        </dialog>
     </article>
 {% endblock %}

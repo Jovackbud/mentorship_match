@@ -53,12 +53,30 @@
                 <small>Languages you are comfortable mentoring in.</small>
             </label>
 
-            <!-- Demographics as raw JSON for simplicity, with example -->
-            <label for="demographics">
-                Demographics (JSON format, optional)
-                <textarea id="demographics" name="demographics" rows="3" placeholder='{"gender": "Non-binary", "ethnicity": "Asian"}'></textarea>
-                <small>Optional: Share demographic info for diversity matching (e.g., <code>{"gender": "Female", "years_experience": 10}</code>). Ensure valid JSON format (double quotes for keys and string values).</small>
-            </label>
+            <!-- UPDATED DEMOGRAPHICS INPUTS - Replaced textarea with individual fields -->
+            <fieldset>
+                <legend>Optional Demographics <small>(for diversity matching)</small></legend>
+                <div class="grid">
+                    <label for="demographics_gender">
+                        Gender
+                        <select id="demographics_gender" name="demographics_gender">
+                            <option value="">Select...</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Non-binary">Non-binary</option>
+                            <option value="Prefer not to say">Prefer not to say</option>
+                        </select>
+                    </label>
+                    <label for="demographics_ethnicity">
+                        Ethnicity / Background
+                        <input type="text" id="demographics_ethnicity" name="demographics_ethnicity" placeholder="e.g., Asian, Hispanic, Caucasian">
+                    </label>
+                </div>
+                <label for="demographics_years_experience">
+                    Years of Professional Experience
+                    <input type="number" id="demographics_years_experience" name="demographics_years_experience" placeholder="e.g., 5" min="0">
+                </label>
+            </fieldset>
             
             <button type="submit">Register as Mentor</button>
             <p id="mentor-response-message" aria-live="polite" style="margin-top: 1rem;" hidden></p>

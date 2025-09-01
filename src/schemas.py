@@ -1,6 +1,6 @@
+import uuid
 from datetime import datetime, timedelta
-from os import name
-from typing import List, Dict, Any, Optional # Keep Optional
+from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 from .models import MentorshipStatus
 
@@ -18,7 +18,11 @@ class UserResponse(UserBase):
     id: int
     is_active: bool
     created_at: datetime
-    updated_at: Optional[datetime] # <<< ADDED Optional for updated_at here
+    updated_at: Optional[datetime]
+
+    # ADDED: Fields for associated profile IDs
+    mentor_profile_id: Optional[int] = None
+    mentee_profile_id: Optional[int] = None
 
     model_config = {
         "from_attributes": True,
@@ -48,7 +52,7 @@ class PreferencesInput(BaseModel):
     mentorship_style: Optional[str] = Field(None, description="Preferred mentorship style (for mentees).")
 
 class MentorCreate(BaseModel):
-    name: str = Field(..., min_length=2, max_length=100, description="The mentor's full name.")
+    name: str = Field(..., min_length=2, max_length=100, description="The mentor's full name.") # ADDED name
     bio: str = Field(..., min_length=20, description="Brief biography or expertise summary.")
     expertise: Optional[str] = Field(None, description="Specific areas of expertise (e.g., 'Software Engineering, Product Management').")
     capacity: int = Field(1, ge=1, description="Maximum number of mentees this mentor can take.")
@@ -57,7 +61,7 @@ class MentorCreate(BaseModel):
     demographics: Optional[Dict[str, Any]] = Field(None, description="Optional demographic information.")
 
 class MentorUpdate(MentorCreate):
-    name: str = Field(..., min_length=2, max_length=100, description="The mentor's full name.")
+    name: Optional[str] = Field(None, min_length=2, max_length=100, description="The mentor's full name.") # ADDED name
     bio: Optional[str] = Field(None, min_length=20, description="Brief biography or expertise summary.")
     capacity: Optional[int] = Field(None, ge=1, description="Maximum number of mentees this mentor can take.")
     expertise: Optional[str] = None
@@ -67,7 +71,7 @@ class MentorUpdate(MentorCreate):
 
 
 class MenteeMatchRequest(BaseModel):
-    name: str = Field(..., min_length=2, max_length=100, description="Your full name.")
+    name: str = Field(..., min_length=2, max_length=100, description="Your full name.") # ADDED name
     bio: str = Field(..., min_length=20, description="Your brief biography or CV summary.")
     goals: Optional[str] = Field(None, description="Your mentorship goals (e.g., 'Improve leadership skills', 'Land a FAANG job').")
     preferences: Optional[PreferencesInput] = Field(None, description="Your preferences for a mentor.")
@@ -91,7 +95,7 @@ class FeedbackCreate(BaseModel):
 class MentorResponse(BaseModel):
     id: int
     user_id: int
-    name: str
+    name: str # ADDED name
     bio: str
     expertise: Optional[str]
     capacity: int
@@ -101,18 +105,17 @@ class MentorResponse(BaseModel):
     demographics: Optional[Dict[str, Any]]
     is_active: bool
     created_at: datetime
-    updated_at: Optional[datetime] # <<< ADDED Optional for updated_at here
+    updated_at: Optional[datetime]
 
     model_config = {
         "from_attributes": True,
         "arbitrary_types_allowed": True
     }
 
-# MenteeResponse model
 class MenteeResponse(BaseModel):
     id: int
     user_id: int
-    mentee_name: str
+    name: str # ADDED name
     bio: str
     goals: Optional[str]
     preferences: Optional[Dict[str, Any]]
@@ -127,10 +130,9 @@ class MenteeResponse(BaseModel):
         "arbitrary_types_allowed": True
     }
 
-
 class MatchedMentor(BaseModel):
     mentor_id: int
-    mentor_name: str
+    mentor_name: str # ADDED name
     mentor_bio_snippet: str
     re_rank_score: float
     explanations: List[str]
@@ -138,16 +140,16 @@ class MatchedMentor(BaseModel):
 
 class MatchResponse(BaseModel):
     mentee_id: int = Field(..., description="The ID of the mentee whose match was requested.")
-    mentee_name: str = Field(..., description="The name of the mentee whose match was requested.")
+    mentee_name: str = Field(..., description="The name of the mentee whose match was requested.") # ADDED name
     recommendations: List[MatchedMentor] = Field([], description="List of recommended mentors.")
     message: str = "Recommendations generated successfully."
 
 class MentorshipRequestResponse(BaseModel):
     id: int
     mentee_id: int
-    mentee_name: Optional[str] = None
+    mentee_name: Optional[str] = None # ADDED name (Optional as it's populated dynamically from relationships)
     mentor_id: int
-    mentor_name: Optional[str] = None
+    mentor_name: Optional[str] = None # ADDED name (Optional as it's populated dynamically from relationships)
     status: MentorshipStatus
     request_message: Optional[str]
     request_date: datetime

@@ -1,7 +1,16 @@
 /* General styling for success messages across the application */
-[data-variant="success"] { 
+/* Targeting all message elements by ID directly to ensure high specificity */
+#register-response-message[data-variant="success"],
+#login-response-message[data-variant="success"],
+#mentor-response-message[data-variant="success"],
+#mentee-response-message[data-variant="success"],
+#feedback-response-message[data-variant="success"],
+#requests-message[data-variant="success"],           /* Mentor Dashboard requests message */
+#mentee-requests-message[data-variant="success"],    /* Mentee Dashboard requests message */
+#mentor-profile-message[data-variant="success"],     /* Mentor Dashboard profile fetch message */
+#mentee-profile-message[data-variant="success"] {    /* Mentee Dashboard profile fetch message */
     color: var(--pico-color-success); /* Pico's success color */
-    background-color: var(--pico-form-element-background-color); /* Light background */
+    background-color: var(--pico-form-element-background-color);
     border-left: 5px solid var(--pico-color-success);
     padding: var(--pico-spacing);
     margin-top: var(--pico-spacing);
@@ -9,7 +18,16 @@
 }
 
 /* General styling for error messages across the application */
-[data-variant="error"] { 
+/* Targeting all message elements by ID directly to ensure high specificity */
+#register-response-message[data-variant="error"],
+#login-response-message[data-variant="error"],
+#mentor-response-message[data-variant="error"],
+#mentee-response-message[data-variant="error"],
+#feedback-response-message[data-variant="error"],
+#requests-message[data-variant="error"],             /* Mentor Dashboard requests message */
+#mentee-requests-message[data-variant="error"],      /* Mentee Dashboard requests message */
+#mentor-profile-message[data-variant="error"],       /* Mentor Dashboard profile fetch message */
+#mentee-profile-message[data-variant="error"] {      /* Mentee Dashboard profile fetch message */
     color: var(--pico-color-danger); /* Pico's danger color */
     background-color: var(--pico-form-element-background-color);
     border-left: 5px solid var(--pico-color-danger);
@@ -30,21 +48,33 @@
 }
 
 
-/* Styles for mentorship request cards */
-#mentorship-requests-list article {
+/* Styles for mentorship request cards and recommendation cards */
+#mentorship-requests-list article,
+#mentor-recommendations article {
     margin-bottom: var(--pico-spacing);
     border: 1px solid var(--pico-form-element-border-color);
     border-radius: var(--pico-border-radius);
     padding: var(--pico-spacing);
+    transition: all 0.2s ease-in-out; /* Smooth transition for hover effects */
 }
 
-#mentorship-requests-list article h5 {
+/* Optional: Add a subtle hover effect for cards */
+#mentorship-requests-list article:hover,
+#mentor-recommendations article:hover {
+    box-shadow: var(--pico-box-shadow); /* Pico's default box-shadow on hover */
+    transform: translateY(-2px); /* Slightly lift the card */
+}
+
+
+#mentorship-requests-list article h5,
+#mentor-recommendations article h4 {
     margin-top: 0;
     margin-bottom: var(--pico-spacing-0-5);
     color: var(--pico-primary);
 }
 
-#mentorship-requests-list article p {
+#mentorship-requests-list article p,
+#mentor-recommendations article p {
     margin-bottom: var(--pico-spacing-0-25);
 }
 
@@ -78,7 +108,9 @@
     border-radius: var(--pico-border-radius);
 }
 
-#mentorship-requests-list footer button {
+/* Button spacing within card footers */
+#mentorship-requests-list footer button,
+#mentor-recommendations footer button {
     margin-right: var(--pico-spacing-0-5);
 }
 
@@ -92,14 +124,34 @@
     margin-bottom: var(--pico-spacing); /* Space between individual cards */
 }
 
+/* --- Navigation Specific Styles --- */
+
 /* Fix for black dots in navigation */
-#main-nav-links {
-    list-style: none; /* Remove default bullet points */
-    padding-left: 0;  /* Remove default left padding */
+/* Target li elements directly within the nav ul for maximum specificity */
+nav ul li {
+    list-style: none !important; /* Force removal of bullet points */
+    /* Padding-left can be managed by Pico's defaults or nav ul */
 }
 
-/* Ensure list items for auth in nav are not hidden by default if present */
-/* Visibility is now fully managed by JS toggling the 'hidden' attribute */
-#main-nav-links li {
-    display: list-item; /* Base display for list items */
+/* Ensure the parent ul itself has no default left padding that could create space for bullets */
+nav ul {
+    padding-left: 0 !important;
+}
+
+/* Align the nav content vertically if it contains different element types */
+nav ul {
+    align-items: center;
+}
+
+/* Adjust spacing for navigation links that are not buttons */
+/* This is particularly for the new dynamic dashboard links */
+#main-nav-links-right li a.secondary {
+    padding: var(--pico-nav-link-spacing-vertical) var(--pico-nav-link-spacing-horizontal);
+    margin: 0; /* Remove any default margins that might interfere */
+    display: block; /* Make the whole area clickable */
+}
+
+/* Reduce margin-bottom for labels inside fieldsets for a tighter look */
+fieldset label {
+    margin-bottom: var(--pico-spacing-0-5);
 }
