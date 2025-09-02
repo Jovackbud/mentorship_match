@@ -22,6 +22,7 @@ def post_process_matches(
     """
     final_recommendations = []
 
+    # Enforce limit
     top_n_mentors = ranked_mentors[:limit]
 
     for mentor in top_n_mentors:
@@ -35,16 +36,7 @@ def post_process_matches(
         # Explanation for availability overlap
         overlap_minutes = mentor.get('__overlap_minutes')
         if overlap_minutes is not None and overlap_minutes > 0:
-            # Enhanced explanation for hours/minutes (from previous feedback)
-            hours, minutes_remainder = divmod(overlap_minutes, 60)
-            overlap_str_parts = []
-            if hours > 0:
-                overlap_str_parts.append(f"{hours} hour{'s' if hours > 1 else ''}")
-            if minutes_remainder > 0:
-                overlap_str_parts.append(f"{minutes_remainder} minute{'s' if minutes_remainder > 1 else ''}")
-            
-            if overlap_str_parts:
-                explanations.append(f"Availability overlap of {', '.join(overlap_str_parts)} per week.")
+            explanations.append(f"Availability overlap of {overlap_minutes} minutes per week.")
 
         # Explanation for preference matches
         preference_match_count = mentor.get('__preference_match_count')
@@ -58,16 +50,9 @@ def post_process_matches(
                 explanations.append(f"Strong preference alignment ({', '.join(pref_details)}).")
 
         # Assemble the final recommendation structure
-        # NEW: Added mentor_name, keeping mentor_bio_snippet
-        raw_bio = mentor.get('bio', '')
-        bio_snippet = raw_bio[:100]
-        if len(raw_bio) > 100:
-            bio_snippet += '...'
-
         recommendation = {
             "mentor_id": mentor.get('id'),
-            "mentor_name": mentor.get('name', 'Unknown Mentor'), # ADD THIS LINE
-            "mentor_bio_snippet": bio_snippet, # Using refined bio snippet
+            "mentor_bio_snippet": mentor.get('bio', '')[:100] + '...',
             "re_rank_score": mentor.get('__re_rank_score'),
             "explanations": explanations,
             "mentor_details": {

@@ -1,7 +1,10 @@
+# src/matching_service.py
 import logging
 from typing import List, Dict, Any, Tuple, cast
 from sqlalchemy.orm import Session
-from . import models, embeddings, vector_store, filtering, re_ranking, post_processing
+from .models import Mentor
+from .core.embeddings import get_embeddings
+from .core import vector_store, filtering, re_ranking, post_processing
 from .config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -12,7 +15,6 @@ class MatchingService:
     def __init__(self, db: Session):
         self.db = db
         self.faiss_manager = vector_store.faiss_index_manager
-        # No need to manage separate FAISS ID mappings if app uses same int IDs
 
     def batch_update_faiss_index(self, mentor_embeddings_data: List[Tuple[List[float], int]]):
         """
@@ -31,7 +33,7 @@ class MatchingService:
 
     def initialize_faiss_with_mentors(self):
         logger.info("Initializing FAISS index with existing mentor embeddings.")
-        all_active_mentors = self.db.query(models.Mentor).filter(models.Mentor.is_active == True).all()
+        all_active_mentors = self.db.query(Mentor).filter(Mentor.is_active == True).all()
 
         embeddings_to_add = []
         for mentor in all_active_mentors:
@@ -40,9 +42,8 @@ class MatchingService:
             else:
                 logger.error(f"Mentor ID: {mentor.id} is missing embedding during FAISS initialization. Skipping.")
         
-        self.batch_update_faiss_index(embeddings_to_add) # Use the batch method
+        self.batch_update_faiss_index(embeddings_to_add)
         logger.info(f"Successfully synchronized {self.faiss_manager.index.ntotal} mentor embeddings with FAISS index.")
-
 
     def get_mentor_recommendations(
         self,
@@ -53,12 +54,11 @@ class MatchingService:
         """
         Executes the full mentor matching pipeline for a given mentee profile.
         """
-        logger.info(f"Starting matching process for mentee: {mentee_profile_data.get('name', 'Unknown Mentee')}.") # UPDATED LOG
+        logger.info(f"Starting matching process for mentee: {mentee_profile_data.get('name', 'Unknown Mentee')}.")
 
         # 1. Embedding Mentee Profile
-        # ADD mentee_profile_data.get('name', '') to the text for embedding
         mentee_text = f"{mentee_profile_data.get('bio', '')} {mentee_profile_data.get('goals', '')} {mentee_profile_data.get('name', '')}" 
-        mentee_embedding = embeddings.get_embeddings([mentee_text])
+        mentee_embedding = get_embeddings([mentee_text])
 
         if mentee_embedding is None or not mentee_embedding:
             logger.error("Failed to generate embedding for mentee. Returning empty list.")
@@ -78,9 +78,9 @@ class MatchingService:
         mentor_id_to_score = {res[0]: res[1] for res in raw_faiss_results}
 
         # Query database using integer IDs
-        candidate_mentors_db = self.db.query(models.Mentor).filter(
-            models.Mentor.id.in_(candidate_mentor_ids),
-            models.Mentor.is_active == True
+        candidate_mentors_db = self.db.query(Mentor).filter(
+            Mentor.id.in_(candidate_mentor_ids),
+            Mentor.is_active == True
         ).all()
 
         candidate_mentors_dicts = []
@@ -100,7 +100,6 @@ class MatchingService:
             candidate_mentors_dicts.append(mentor_dict)
 
         candidate_mentors_dicts.sort(key=lambda x: x['__score'], reverse=True)
-
 
         # 3. Filtering
         filtered_mentors = filtering.apply_filters(
