@@ -1,10 +1,10 @@
 # src/routers/matching_router.py
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Path
 from sqlalchemy.orm import Session
 from typing import List
 
 from ..database import get_db
-from ..matching_service import MatchingService
+from ..services.matching_service import MatchingService
 from ..dependencies.auth_dependencies import get_owned_mentee
 from ..dependencies.service_dependencies import get_profile_service
 from ..schemas import MenteeMatchRequest, MatchResponse
@@ -19,6 +19,7 @@ router = APIRouter(prefix="/api", tags=["matching"])
 
 @router.post("/mentees/{mentee_id}/match", response_model=MatchResponse)
 async def get_mentor_matches(
+    mentee_id: int = Path(..., description="The ID of the mentee to get matches for"),
     owned_mentee: Mentee = Depends(get_owned_mentee),
     db: Session = Depends(get_db)
 ):
@@ -26,7 +27,6 @@ async def get_mentor_matches(
     try:
         matching_service = MatchingService(db)
         
-        # Convert mentee to dict format expected by matching service
         mentee_data = {
             'name': owned_mentee.name,
             'bio': owned_mentee.bio,
@@ -57,13 +57,13 @@ async def match_or_create_mentee(
     """Create or update mentee profile and get mentor recommendations"""
     try:
         # Create or update mentee profile
-        mentee_data = mentee_request.model_dump()
-        mentee = profile_service.create_or_update_mentee(current_user.id, mentee_data)
+        mentee_profile_for_db = mentee_request.model_dump(exclude={"request_message"})
+        mentee = profile_service.create_or_update_mentee(current_user.id, mentee_profile_for_db)
         
         # Get matching recommendations
         matching_service = MatchingService(db)
-        recommendations = matching_service.get_mentor_recommendations(mentee_data)
-        
+        recommendations = matching_service.get_mentor_recommendations(mentee_profile_for_db)
+
         return MatchResponse(
             mentee_id=mentee.id,
             mentee_name=mentee.name,

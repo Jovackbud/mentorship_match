@@ -1,5 +1,5 @@
 # src/routers/profile_router.py
-from fastapi import APIRouter, Depends, HTTPException, status, Response
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Path
 from sqlalchemy.orm import Session
 
 from ..services import ProfileService
@@ -27,7 +27,8 @@ async def create_mentor(
 
 @router.put("/mentors/{mentor_id}", response_model=MentorResponse)
 async def update_mentor(
-    mentor_data: MentorUpdate,
+    mentor_id: int = Path(..., description="The ID of the mentor to update"),
+    mentor_data: MentorUpdate = ...,
     owned_mentor: Mentor = Depends(get_owned_mentor),
     profile_service: ProfileService = Depends(get_profile_service)
 ):
@@ -40,6 +41,7 @@ async def update_mentor(
 
 @router.delete("/mentors/{mentor_id}", status_code=204)
 async def delete_mentor(
+    mentor_id: int = Path(..., description="The ID of the mentor to delete"),
     owned_mentor: Mentor = Depends(get_owned_mentor),
     profile_service: ProfileService = Depends(get_profile_service)
 ):

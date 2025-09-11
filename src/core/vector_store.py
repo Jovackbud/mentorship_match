@@ -4,7 +4,7 @@ import logging
 import os
 from typing import List, Tuple, Optional
 from filelock import FileLock
-from config import get_settings
+from ..config import get_settings
 from .embeddings import EMBEDDING_DIM
 import traceback
 import time

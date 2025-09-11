@@ -7,8 +7,8 @@ from starlette.staticfiles import StaticFiles
 from .config import get_settings
 from .database import create_db_and_tables, SessionLocal
 from .core.embeddings import load_embedding_model
-from .matching_service import MatchingService
-from .routers import auth_router, profile_router, mentorship_router, frontend_router, matching_router
+from .services.matching_service import MatchingService
+from .routers import auth_router, profile_router, mentorship_router, frontend_router, matching_router, feedback_router
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -29,8 +29,9 @@ app.mount("/static", StaticFiles(directory="src/static"), name="static")
 app.include_router(auth_router.router)
 app.include_router(profile_router.router)
 app.include_router(mentorship_router.router)
-app.include_router(matching_router.router)  # Add the matching router
+app.include_router(matching_router.router)  
 app.include_router(frontend_router.router)
+app.include_router(feedback_router.router)
 
 @app.on_event("startup")
 async def startup_event():

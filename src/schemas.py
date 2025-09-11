@@ -1,3 +1,4 @@
+# src/schemas.py
 import uuid
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
@@ -132,7 +133,7 @@ class MenteeResponse(BaseModel):
 
 class MatchedMentor(BaseModel):
     mentor_id: int
-    mentor_name: str # ADDED name
+    mentor_name: str
     mentor_bio_snippet: str
     re_rank_score: float
     explanations: List[str]
@@ -156,6 +157,26 @@ class MentorshipRequestResponse(BaseModel):
     acceptance_date: Optional[datetime]
     rejection_reason: Optional[str]
     completed_date: Optional[datetime]
+
+    model_config = {
+        "from_attributes": True,
+        "arbitrary_types_allowed": True
+    }
+
+class FeedbackCreate(BaseModel):
+    mentee_id: int = Field(..., description="ID of the mentee submitting feedback")
+    mentor_id: int = Field(..., description="ID of the mentor being reviewed")
+    rating: int = Field(..., ge=1, le=5, description="Rating from 1 to 5")
+    comment: Optional[str] = Field(None, description="Optional feedback comment")
+
+    model_config = {
+        "from_attributes": True,
+        "arbitrary_types_allowed": True
+    }
+
+class FeedbackResponse(FeedbackCreate):
+    id: int
+    created_at: datetime
 
     model_config = {
         "from_attributes": True,

@@ -1,5 +1,5 @@
 # src/routers/mentorship_router.py
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Path
 from typing import Optional, List
 from sqlalchemy.orm import Session
 
@@ -15,6 +15,7 @@ router = APIRouter(prefix="/api", tags=["mentorship"])
 
 @router.get("/mentors/{mentor_id}/requests", response_model=List[MentorshipRequestResponse])
 async def get_mentor_requests(
+    mentor_id: int = Path(..., description="The ID of the mentor to get requests for"),
     owned_mentor: Mentor = Depends(get_owned_mentor),
     mentorship_service: MentorshipService = Depends(get_mentorship_service)
 ):
@@ -24,6 +25,7 @@ async def get_mentor_requests(
 
 @router.get("/mentees/{mentee_id}/requests", response_model=List[MentorshipRequestResponse])
 async def get_mentee_requests(
+    mentee_id: int = Path(..., description="The ID of the mentee to get requests for"),
     owned_mentee: Mentee = Depends(get_owned_mentee),
     mentorship_service: MentorshipService = Depends(get_mentorship_service)
 ):
@@ -33,7 +35,8 @@ async def get_mentee_requests(
 
 @router.post("/mentee/{mentee_id}/pick_mentor/{mentor_id}", response_model=MentorshipRequestResponse, status_code=201)
 async def pick_mentor(
-    mentor_id: int,
+    mentee_id: int = Path(..., description="The ID of the mentee picking a mentor"),
+    mentor_id: int = Path(..., description="The ID of the mentor being picked"),
     owned_mentee: Mentee = Depends(get_owned_mentee),
     mentorship_service: MentorshipService = Depends(get_mentorship_service),
     request_message: Optional[str] = Query(None)

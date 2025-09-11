@@ -13,6 +13,10 @@ from .schemas import TokenData
 from .database import get_db
 from sqlalchemy.orm import Session
 
+import logging
+from fastapi import Header, Cookie
+logger = logging.getLogger("uvicorn.error")
+
 # --- Password Hashing ---
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -58,28 +62,51 @@ def authenticate_user(db: Session, username: str, password: str) -> Optional[Use
         return None
     return user
 
-def get_current_user(request: Request, db: Session = Depends(get_db)) -> User: # Use Request here
+def get_current_user(
+    request: Request,
+    db: Session = Depends(get_db),
+    authorization: Optional[str] = Header(None),
+    access_token_cookie: Optional[str] = Cookie(None),
+) -> User:
     """
-    Dependency that decodes the JWT token from an HttpOnly cookie,
-    verifies it, and retrieves the associated user from the database.
-    Raises HTTPException if token is invalid or user not found.
+    Accepts either Authorization: Bearer <token> OR HttpOnly cookie 'access_token'.
+    Prefers Authorization header (convenient for Swagger/tests), falls back to cookie.
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
     )
-    
-    token = request.cookies.get("access_token") # Get token from HttpOnly cookie
+
+    # Log presence (not full token) to help debugging
+    logger.info(
+        "get_current_user called — Authorization header present: %s ; cookie present: %s",
+        bool(authorization),
+        bool(access_token_cookie or request.cookies.get("access_token")),
+    )
+
+    # Prefer Authorization header if it is a Bearer token
+    token = None
+    if authorization:
+        if authorization.startswith("Bearer "):
+            token = authorization.split(" ", 1)[1]
+        else:
+            logger.info("Authorization header present but not Bearer.")
+
+    # Fallback to cookie (either explicit Cookie param or request.cookies)
+    if not token:
+        token = access_token_cookie or request.cookies.get("access_token")
+
     if not token:
         raise credentials_exception
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
+        username: Optional[str] = payload.get("sub")
         if username is None:
             raise credentials_exception
         token_data = TokenData(username=username)
-    except JWTError:
+    except JWTError as e:
+        logger.info("JWT decode failed: %s", e)
         raise credentials_exception
 
     user = get_user(db, token_data.username)

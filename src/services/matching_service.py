@@ -2,10 +2,10 @@
 import logging
 from typing import List, Dict, Any, Tuple, cast
 from sqlalchemy.orm import Session
-from .models import Mentor
-from .core.embeddings import get_embeddings
-from .core import vector_store, filtering, re_ranking, post_processing
-from .config import get_settings
+from ..models import Mentor
+from ..core.embeddings import get_embeddings
+from ..core import vector_store, filtering, re_ranking, post_processing
+from ..config import get_settings
 
 logger = logging.getLogger(__name__)
 

@@ -2,7 +2,7 @@
 from typing import List, cast
 from ..models import Mentor, Mentee
 from ..core.embeddings import get_embeddings
-from ..vector_store import faiss_index_manager
+from ..core.vector_store import faiss_index_manager
 import logging
 
 logger = logging.getLogger(__name__)
