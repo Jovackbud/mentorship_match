@@ -1,8 +1,9 @@
+<!-- src/templates/mentor_signup.html -->
 {% extends "base.html" %}
 
 {% block content %}
     <article>
-        <h1>Become a Mentor</h1>
+        <h1>Become a Mentor</h1> {# Point 4: Harmonized wording #}
         <p class="lead">Share your expertise and guide the next generation of professionals.</p>
 
         <form id="mentor-signup-form">
@@ -39,21 +40,18 @@
                 </label>
             </div>
 
-            <!-- Simplified Preferences: Industries as comma-separated -->
             <label for="preferences_industries">
                 Preferred Mentee Industries (comma-separated, optional)
                 <input type="text" id="preferences_industries" name="preferences_industries" placeholder="e.g., Tech, Fintech, Healthcare">
                 <small>Industries you prefer your mentees to be in.</small>
             </label>
 
-            <!-- Simplified Preferences: Languages as comma-separated -->
             <label for="preferences_languages">
                 Preferred Mentee Languages (comma-separated, optional)
                 <input type="text" id="preferences_languages" name="preferences_languages" placeholder="e.g., English, Spanish">
                 <small>Languages you are comfortable mentoring in.</small>
             </label>
 
-            <!-- UPDATED DEMOGRAPHICS INPUTS - Replaced textarea with individual fields -->
             <fieldset>
                 <legend>Optional Demographics <small>(for diversity matching)</small></legend>
                 <div class="grid">
@@ -78,7 +76,7 @@
                 </label>
             </fieldset>
             
-            <button type="submit">Register as Mentor</button>
+            <button type="submit">Become a Mentor</button> {# Point 4: Harmonized wording #}
             <p id="mentor-response-message" aria-live="polite" style="margin-top: 1rem;" hidden></p>
         </form>
     </article>

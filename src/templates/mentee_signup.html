@@ -1,8 +1,9 @@
+<!-- src/templates/mentee_signup.html -->
 {% extends "base.html" %}
 
 {% block content %}
     <article>
-        <h1>Find Your Mentor</h1>
+        <h1>Find Your Mentor</h1> {# Point 4: Harmonized wording #}
         <p class="lead">Tell us about yourself and your goals to create or update your mentee profile, and we'll connect you with the best mentors.</p>
 
         <form id="mentee-signup-form">
@@ -37,19 +38,14 @@
                     <input type="number" id="hours_per_month" name="hours_per_month" placeholder="e.g., 6" min="0">
                     <small>Estimated hours you can dedicate per month for mentorship.</small>
                 </label>
-
-                <!-- This simplified form currently does not collect specific time windows for mentees -->
-                <!-- You could add fields for day/time windows later if needed for more granular input -->
             </div>
 
-            <!-- Simplified Preferences: Industries as comma-separated -->
             <label for="preferences_industries">
                 Preferred Mentor Industries (comma-separated, optional)
                 <input type="text" id="preferences_industries" name="preferences_industries" placeholder="e.g., AI, Tech, Fintech">
                 <small>Industries you prefer your mentor to be in.</small>
             </label>
 
-            <!-- Simplified Preferences: Languages as comma-separated -->
             <label for="preferences_languages">
                 Preferred Mentor Languages (comma-separated, optional)
                 <input type="text" id="preferences_languages" name="preferences_languages" placeholder="e.g., English, Spanish">

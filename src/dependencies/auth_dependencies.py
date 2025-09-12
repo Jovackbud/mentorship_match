@@ -1,6 +1,6 @@
 # src/dependencies/auth_dependencies.py
 from typing import TypeVar, Type, Callable, Optional
-from fastapi import Depends, HTTPException, status, Path, Request
+from fastapi import Depends, HTTPException, status, Path
 from sqlalchemy.orm import Session
 from ..models import User, Mentor, Mentee, MentorshipRequest
 from ..database import get_db
@@ -9,31 +9,20 @@ from ..constants import ErrorMessages
 
 T = TypeVar('T')
 
-def create_ownership_dependency(model_class: Type[T], error_message: str, path_param: Optional[str] = None) -> Callable:
+def create_ownership_dependency(model_class: Type[T], error_message: str) -> Callable:
     """
     Factory to create ownership verification dependencies.
-
-    path_param: optional explicit name of the path parameter (e.g. "mentee_id").
-                If not provided, defaults to "<modelclassname>_id" (lowercased).
+    The dependency function directly declares the path parameter,
+    allowing FastAPI to automatically handle its parsing and documentation.
     """
     def dependency(
-        request: Request,
+        # The router function (e.g., update_mentor) will explicitly define mentor_id: int = Path(...)
+        # FastAPI's dependency injection will then map this path parameter to 'entity_id' here.
+        # The 'alias' parameter helps document which path parameter this dependency expects.
+        entity_id: int = Path(..., alias=f"{model_class.__name__.lower()}_id", description=f"The ID of the {model_class.__name__.lower()}"),
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user)
     ) -> T:
-        # Determine path param name
-        param_name = path_param or f"{model_class.__name__.lower()}_id"
-        raw_id = request.path_params.get(param_name)
-
-        if raw_id is None:
-            # This will surface as a 422 with a clearer message
-            raise HTTPException(status_code=422, detail=f"Missing path parameter '{param_name}'")
-
-        try:
-            entity_id = int(raw_id)
-        except (TypeError, ValueError):
-            raise HTTPException(status_code=422, detail=f"Invalid path parameter '{param_name}'")
-
         entity = db.query(model_class).filter(model_class.id == entity_id).first()
         if not entity:
             raise HTTPException(status_code=404, detail=f"{model_class.__name__} not found")
@@ -44,8 +33,8 @@ def create_ownership_dependency(model_class: Type[T], error_message: str, path_p
     return dependency
 
 # Create specific dependencies — explicitly bind to route variable names
-get_owned_mentor = create_ownership_dependency(Mentor, ErrorMessages.UNAUTHORIZED_MENTOR, path_param="mentor_id")
-get_owned_mentee = create_ownership_dependency(Mentee, ErrorMessages.UNAUTHORIZED_MENTEE, path_param="mentee_id")
+get_owned_mentor = create_ownership_dependency(Mentor, ErrorMessages.UNAUTHORIZED_MENTOR)
+get_owned_mentee = create_ownership_dependency(Mentee, ErrorMessages.UNAUTHORIZED_MENTEE)
 
 def get_mentor_request_with_auth(
     mentor_id: int = Path(...),

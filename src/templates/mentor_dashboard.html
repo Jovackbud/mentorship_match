@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <article>
+    <article class="compact">
         <header>
             <h1>Mentor Dashboard <small id="mentor-dashboard-name"></small></h1>
             <p class="lead">Manage your mentorship requests and active mentees.</p>
@@ -11,6 +11,9 @@
             <h2>Your Profile</h2>
             <p id="mentor-profile-message" aria-live="polite" hidden></p>
             <p>Loading additional profile details...</p>
+            <footer>
+                <a href="/profile/mentor/edit" role="button" class="secondary">Edit Profile</a>
+            </footer>
         </section>
 
         <section id="mentorship-requests-section" style="margin-top: 2rem;">

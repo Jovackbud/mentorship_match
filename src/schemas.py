@@ -61,16 +61,6 @@ class MentorCreate(BaseModel):
     preferences: Optional[PreferencesInput] = Field(None, description="Mentor's preferences for mentees.")
     demographics: Optional[Dict[str, Any]] = Field(None, description="Optional demographic information.")
 
-class MentorUpdate(MentorCreate):
-    name: Optional[str] = Field(None, min_length=2, max_length=100, description="The mentor's full name.") # ADDED name
-    bio: Optional[str] = Field(None, min_length=20, description="Brief biography or expertise summary.")
-    capacity: Optional[int] = Field(None, ge=1, description="Maximum number of mentees this mentor can take.")
-    expertise: Optional[str] = None
-    availability: Optional[AvailabilityInput] = None
-    preferences: Optional[PreferencesInput] = None
-    demographics: Optional[Dict[str, Any]] = None
-
-
 class MenteeMatchRequest(BaseModel):
     name: str = Field(..., min_length=2, max_length=100, description="Your full name.") # ADDED name
     bio: str = Field(..., min_length=20, description="Your brief biography or CV summary.")
@@ -84,12 +74,22 @@ class MentorshipStatusUpdate(BaseModel):
     status: MentorshipStatus
     rejection_reason: Optional[str] = Field(None, description="Only relevant for REJECTED status.")
 
-class FeedbackCreate(BaseModel):
-    mentee_id: int
-    mentor_id: int
-    rating: int = Field(..., ge=1, le=5, description="Rating of the mentor-mentee match (1-5).")
-    comment: Optional[str] = Field(None, description="Optional comment about the match.")
+class MenteeUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=2, max_length=100, description="Your full name.")
+    bio: Optional[str] = Field(None, min_length=20, description="Your brief biography or CV summary.")
+    goals: Optional[str] = Field(None, description="Your mentorship goals.")
+    preferences: Optional[PreferencesInput] = Field(None, description="Your preferences for a mentor.")
+    availability: Optional[AvailabilityInput] = Field(None, description="Your availability details for mentorship.")
+    mentorship_style: Optional[str] = Field(None, description="Your preferred mentorship style (e.g., 'hands-on').")
 
+class MentorUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=2, max_length=100, description="Your full name.")
+    bio: Optional[str] = Field(None, min_length=20, description="Your brief biography or CV summary.")
+    expertise: Optional[str] = Field(None, description="Your areas of expertise.")
+    capacity: Optional[int] = Field(None, ge=1, description="Your maximum number of mentees.")
+    availability: Optional[AvailabilityInput] = Field(None, description="Your availability details for mentorship.")
+    preferences: Optional[PreferencesInput] = Field(None, description="Your preferences for mentees.")
+    demographics: Optional[Dict[str, Any]] = Field(None, description="Your demographic information.")
 
 # --- Output Models (Existing + MenteeResponse) ---
 

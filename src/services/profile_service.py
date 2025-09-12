@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from datetime import datetime, timezone
 
-from ..models import Mentor, Mentee
+from ..models import Mentor, Mentee, MentorshipRequest, MentorshipStatus
 from ..utils.embedding_utils import EmbeddingUtils
 from ..utils.validation_utils import ValidationUtils
 from ..exceptions import ProfileAlreadyExistsError, EmbeddingError, BusinessLogicError
@@ -221,3 +221,38 @@ class ProfileService:
         if key in ['availability', 'preferences'] and hasattr(value, 'model_dump'):
             return value.model_dump(mode='json') if value else None
         return value
+
+    def update_mentee(self, mentee: Mentee, data: Dict[str, Any]) -> Mentee:
+        """Public wrapper for updating a mentee"""
+        return self._update_mentee(mentee, data)
+
+    def delete_mentee(self, mentee: Mentee):
+        """Deletes a mentee profile with proper validation"""
+        try:
+            # Prevent deleting while having active mentorships
+            active_count = self.validator.db.query(MentorshipRequest).filter(
+                MentorshipRequest.mentee_id == mentee.id,
+                MentorshipRequest.status == MentorshipStatus.ACCEPTED
+            ).count()
+            if active_count > 0:
+                raise BusinessLogicError(f"Cannot delete mentee with {active_count} active mentorship(s)")
+
+            mentee_id = mentee.id
+            self.db.delete(mentee)
+            self.db.commit()
+
+            # Remove embedding (best-effort)
+            try:
+                faiss_index_manager.remove_embedding(f"mentee:{mentee_id}")
+            except Exception as e:
+                logger.warning(f"Failed to remove mentee {mentee_id} embedding from FAISS: {e}")
+        except BusinessLogicError:
+            raise
+        except SQLAlchemyError as e:
+            self.db.rollback()
+            logger.error(f"Database error deleting mentee {mentee.id}: {e}")
+            raise BusinessLogicError("Database error occurred while deleting mentee profile")
+        except Exception as e:
+            self.db.rollback()
+            logger.error(f"Unexpected error deleting mentee {mentee.id}: {e}")
+            raise BusinessLogicError("An unexpected error occurred while deleting mentee profile")

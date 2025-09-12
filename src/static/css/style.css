@@ -1,3 +1,4 @@
+/* src/static/css/style.css */
 /* General styling for success messages across the application */
 /* Targeting all message elements by ID directly to ensure high specificity */
 #register-response-message[data-variant="success"],
@@ -154,4 +155,18 @@ nav ul {
 /* Reduce margin-bottom for labels inside fieldsets for a tighter look */
 fieldset label {
     margin-bottom: var(--pico-spacing-0-5);
+}
+
+
+/* Compact layout helpers */
+article.compact p { margin-bottom: 0.5rem; line-height: 1.35; }
+article.compact li { margin-bottom: 0.35rem; line-height: 1.35; }
+article.compact h1, article.compact h2, article.compact h3 { margin-bottom: 0.6rem; }
+article.compact section { margin-bottom: 1.25rem; }
+
+/* Cards also use compact spacing */
+#mentorship-requests-list article p,
+#mentor-recommendations article p {
+    margin-bottom: 0.4rem;
+    line-height: 1.35;
 }

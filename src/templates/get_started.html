@@ -1,0 +1,18 @@
+<!-- src/templates/get_started.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<article class="compact">
+  <header>
+    <h1>Welcome!</h1>
+    <p class="lead">Choose how you want to proceed.</p>
+  </header>
+
+  <section>
+    <div class="grid">
+      <a href="/signup/mentor" role="button">Become a Mentor</a>
+      <a href="/signup/mentee" role="button" class="secondary">Find Your Mentor</a>
+    </div>
+  </section>
+</article>
+{% endblock %}

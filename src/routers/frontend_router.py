@@ -28,7 +28,7 @@ async def mentor_signup_page(request: Request):
 
 @router.get("/signup/mentee", response_class=HTMLResponse)
 async def mentee_signup_page(request: Request):
-    return templates.TemplateResponse("mentee_signup.html", {"request": request, "title": "Find a Mentor"})
+    return templates.TemplateResponse("mentee_signup.html", {"request": request, "title": "Find Your Mentor"})
 
 @router.get("/feedback", response_class=HTMLResponse)
 async def feedback_form_page(request: Request):
@@ -56,7 +56,34 @@ async def mentee_dashboard_page(request: Request, mentee_id: int, db: Session = 
         "mentee_id": mentee_id
     })
 
-# Public profile endpoints (API endpoints, not HTML)
+@router.get("/mentees/{mentee_id}/recommendations", response_class=HTMLResponse)
+async def mentee_recommendations_page(request: Request, mentee_id: int, db: Session = Depends(get_db)):
+    mentee = db.query(Mentee).filter(Mentee.id == mentee_id).first()
+    if not mentee:
+        raise HTTPException(status_code=404, detail="Mentee not found")
+    return templates.TemplateResponse("recommendations.html", {
+        "request": request,
+        "title": f"Matches for {mentee.name}",
+        "mentee_id": mentee_id
+    })
+
+# --- NEW: Routes for Edit Profile Pages ---
+@router.get("/profile/mentor/edit", response_class=HTMLResponse)
+async def mentor_edit_profile_page(request: Request):
+    return templates.TemplateResponse("mentor_edit_profile.html", {
+        "request": request,
+        "title": "Edit Mentor Profile"
+    })
+
+@router.get("/profile/mentee/edit", response_class=HTMLResponse)
+async def mentee_edit_profile_page(request: Request):
+    return templates.TemplateResponse("mentee_edit_profile.html", {
+        "request": request,
+        "title": "Edit Mentee Profile"
+    })
+# --- END NEW ROUTES ---
+
+# Public API endpoints (not HTML pages)
 @router.get("/api/mentors/{mentor_id}", response_model=MentorResponse)
 async def read_mentor_profile(mentor_id: int, db: Session = Depends(get_db)):
     mentor = db.query(Mentor).filter(Mentor.id == mentor_id).first()

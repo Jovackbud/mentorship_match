@@ -1,3 +1,4 @@
+<!-- src/templates/base.html -->
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
@@ -12,17 +13,16 @@
         <ul>
             <li><strong>MentorMatch</strong></li>
         </ul>
-        <ul id="main-nav-links-right"> {# NEW ID: Differentiate from the left-side ul #}
+        <ul id="main-nav-links-right">
             <li><a href="/" class="secondary">Home</a></li>
-            <li id="nav-become-mentor" hidden><a href="/signup/mentor" class="secondary">Become a Mentor</a></li> {# NEW ID, initially hidden #}
-            <li id="nav-find-mentor" hidden><a href="/signup/mentee" class="secondary">Find a Mentor</a></li>     {# NEW ID, initially hidden #}
-            <li id="nav-mentor-dashboard" hidden><a href="#" class="secondary">My Mentor Dashboard</a></li> {# NEW ID, initially hidden #}
-            <li id="nav-mentee-dashboard" hidden><a href="#" class="secondary">My Mentee Dashboard</a></li> {# NEW ID, initially hidden #}
-            <li id="nav-feedback" hidden><a href="/feedback" class="secondary">Give Feedback</a></li>       {# NEW ID, initially hidden #}
-            <li id="register-nav-item" hidden><a href="/register" class="secondary">Register</a></li> {# Using hidden instead of display: none #}
-            <li id="login-nav-item" hidden><a href="/login" class="secondary">Login</a></li>         {# Using hidden instead of display: none #}
-            <li><a href="/docs" class="secondary">API Docs</a></li>
-            <li id="logout-nav-item" hidden><a href="javascript:void(0);" id="logout-btn" role="button" class="contrast">Logout</a></li> {# Using hidden, href for robustness #}
+            <li id="nav-become-mentor" hidden><a href="/signup/mentor" class="secondary">Become a Mentor</a></li>
+            <li id="nav-find-mentor" hidden><a href="/signup/mentee" class="secondary">Find Your Mentor</a></li>
+            <li id="nav-mentor-dashboard" hidden><a href="#" class="secondary">Mentor Dashboard</a></li> {# NO "MY" #}
+            <li id="nav-mentee-dashboard" hidden><a href="#" class="secondary">Mentee Dashboard</a></li> {# NO "MY" #}
+            <li id="nav-feedback" hidden><a href="/feedback" class="secondary">Give Feedback</a></li>
+            <li id="register-nav-item" hidden><a href="/register" class="secondary">Register</a></li>
+            <li id="login-nav-item" hidden><a href="/login" class="secondary">Login</a></li>
+            <li id="logout-nav-item" hidden><a href="javascript:void(0);" id="logout-btn" role="button" class="contrast">Logout</a></li>
         </ul>
     </nav>
     <main class="container">
@@ -32,7 +32,6 @@
         <small>Powered by FastAPI & Pico.css | &copy; 2025 MentorMatch</small>
     </footer>
 
-    <!-- MOVE pick-mentor-modal HERE from mentee_signup.html -->
     <dialog id="pick-mentor-modal">
         <article>
             <a href="#close" aria-label="Close" class="close" onclick="togglePickMentorModal(event)"></a>

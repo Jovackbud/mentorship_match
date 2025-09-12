@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <article>
+    <article class="compact">
         <header>
             <h1>Mentee Dashboard <small id="mentee-dashboard-name"></small></h1> {# Conciser heading, populated by JS #}
             <p class="lead">View and manage your mentorship requests.</p>
@@ -11,8 +11,9 @@
             <h2>Your Profile</h2>
             <p id="mentee-profile-message" aria-live="polite" hidden></p>
             <p>Loading additional profile details...</p>
-            <footer>
-                <button type="button" id="find-new-mentors-btn">Find New Mentor Matches</button> {# Added button #}
+            <footer class="grid">
+                <button type="button" id="find-new-mentors-btn">Find New Mentor Matches</button>
+                <a href="/profile/mentee/edit" role="button" class="secondary">Edit Profile</a>
             </footer>
         </section>
 
@@ -25,14 +26,6 @@
             </div>
         </section>
 
-        <!-- RECOMMENDATIONS SECTION: MOVED FROM MENTEE_SIGNUP.HTML TO DASHBOARD -->
-        <section id="recommendations-section" hidden>
-            <h2>Recommended Mentors</h2> {# Changed heading slightly for context on dashboard #}
-            <p class="lead" id="recommendations-message"></p>
-            <div id="mentor-recommendations" class="grid">
-                <!-- Mentor recommendations will be injected here by JavaScript -->
-            </div>
-        </section>
 
     </article>
 {% endblock %}

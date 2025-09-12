@@ -1,16 +1,15 @@
-document.addEventListener('DOMContentLoaded', () => {
+/* src/static/js/main.js */
+document.addEventListener('DOMContentLoaded', async() => {
     // --- Common Elements & Helpers ---
-    // This is for the 'MentorMatch' strong tag on the left side of the nav
-    const mainNavLinks = document.getElementById('main-nav-links'); 
-    // This is for the <ul> containing functional links on the right side of the nav
-    const mainNavLinksRight = document.getElementById('main-nav-links-right'); 
+    const mainNavLinks = document.getElementById('main-nav-links');
+    const mainNavLinksRight = 
+    document.getElementById('main-nav-links-right');
 
-    // Navigation Items - Dynamically managed visibility
-    const navBecomeMentor = document.getElementById('nav-become-mentor'); 
-    const navFindMentor = document.getElementById('nav-find-mentor');     
-    const navMentorDashboard = document.getElementById('nav-mentor-dashboard'); 
-    const navMenteeDashboard = document.getElementById('nav-mentee-dashboard'); 
-    const navFeedback = document.getElementById('nav-feedback');         
+    const navBecomeMentor = document.getElementById('nav-become-mentor');
+    const navFindMentor = document.getElementById('nav-find-mentor');
+    const navMentorDashboard = document.getElementById('nav-mentor-dashboard');
+    const navMenteeDashboard = document.getElementById('nav-mentee-dashboard');
+    const navFeedback = document.getElementById('nav-feedback');
     const registerNavItem = document.getElementById('register-nav-item');
     const loginNavItem = document.getElementById('login-nav-item');
     const logoutNavItem = document.getElementById('logout-nav-item');
@@ -21,103 +20,94 @@ document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('login-form');
     const mentorSignupForm = document.getElementById('mentor-signup-form');
     const menteeSignupForm = document.getElementById('mentee-signup-form');
-    const feedbackForm = document.getElementById('feedback-form'); 
+    const feedbackForm = document.getElementById('feedback-form');
 
-    // Response Messages for Forms (these will display inline below forms/sections)
+    // Response Messages for Forms
     const registerResponseMessage = document.getElementById('register-response-message');
     const loginResponseMessage = document.getElementById('login-response-message');
     const mentorResponseMessage = document.getElementById('mentor-response-message');
     const menteeResponseMessage = document.getElementById('mentee-response-message');
     const feedbackResponseMessage = document.getElementById('feedback-response-message');
-    
-    // Client-side validation feedback elements (e.g., password mismatch)
+
+    // Client-side validation feedback elements
     const passwordMatchFeedback = document.getElementById('password-match-feedback');
     const ratingFeedback = document.getElementById('rating-feedback');
 
-    // Mentee Signup/Dashboard Specifics (Recommendations section is now primarily on the mentee dashboard)
-    const recommendationsSection = document.getElementById('recommendations-section'); 
-    const recommendationsMessage = document.getElementById('recommendations-message');
-    const mentorRecommendationsDiv = document.getElementById('mentor-recommendations');
-    const pickMentorModal = document.getElementById('pick-mentor-modal'); // Moved to base.html for global access
-    const modalMentorName = document.getElementById('modal-mentor-name'); 
+    // Mentee Dashboard Specifics (Recommendations section is now primarily on the recommendations page)
+    const findNewMentorsBtn = document.getElementById('find-new-mentors-btn'); 
+    const pickMentorModal = document.getElementById('pick-mentor-modal'); 
+    const modalMentorName = document.getElementById('modal-mentor-name');
     const modalRequestMessage = document.getElementById('modal-request-message');
     const confirmPickMentorBtn = document.getElementById('confirm-pick-mentor');
-    const findNewMentorsBtn = document.getElementById('find-new-mentors-btn'); // New button on mentee dashboard
+    
+    // NEW: Elements for the Recommendations Page
+    const recommendationsPageSection = document.getElementById('recommendations-section'); // Section on the new recommendations.html
+    const recommendationsPageMessage = document.getElementById('recommendations-message'); // Message on the new recommendations.html
+    const mentorRecommendationsDiv = document.getElementById('mentor-recommendations'); // Container on the new recommendations.html
+    const proceedToDashboardBtn = document.getElementById('proceed-to-dashboard-btn'); // Button on the new recommendations.html
 
     // Mentor Dashboard Specifics
-    const mentorDashboardName = document.getElementById('mentor-dashboard-name'); // For dynamic dashboard title (e.g., "Alice Johnson")
+    const mentorDashboardName = document.getElementById('mentor-dashboard-name');
     const mentorDashboardProfileSummary = document.getElementById('mentor-profile-summary');
     const mentorDashboardRequestsSection = document.getElementById('mentorship-requests-section');
     const mentorRequestsList = document.getElementById('mentorship-requests-list');
-    const requestsMessage = document.getElementById('requests-message'); // General message area for mentor dashboard
+    const requestsMessage = document.getElementById('requests-message');
     const rejectModal = document.getElementById('reject-modal');
     const rejectionReasonInput = document.getElementById('rejection-reason');
     const confirmRejectBtn = document.getElementById('confirm-reject-btn');
-    const mentorProfileMessage = document.getElementById('mentor-profile-message'); // Specific message area for mentor profile fetch errors
+    const mentorProfileMessage = document.getElementById('mentor-profile-message');
 
     // Mentee Dashboard Specifics
-    const menteeDashboardName = document.getElementById('mentee-dashboard-name'); // For dynamic dashboard title (e.g., "Bob Williams")
+    const menteeDashboardName = document.getElementById('mentee-dashboard-name');
     const menteeDashboardProfileSummary = document.getElementById('mentee-profile-summary');
     const menteeDashboardRequestsList = document.getElementById('mentee-mentorship-requests-list');
-    const menteeRequestsMessage = document.getElementById('mentee-requests-message'); // General message area for mentee dashboard
-    const menteeProfileMessage = document.getElementById('mentee-profile-message'); // Specific message area for mentee profile fetch errors
-    
+    const menteeRequestsMessage = document.getElementById('mentee-requests-message');
+    const menteeProfileMessage = document.getElementById('mentee-profile-message');
+
+
     // --- Global State Variables ---
-    let currentMenteeId = null;
+    let currentMenteeId = null; // Used for mentee signup redirects
     let selectedMentorId = null;
     let currentMentorDashboardId = null;
-    let currentMenteeDashboardId = null;
+    let currentMenteeDashboardId = null; // Used for mentee dashboard redirects & actions
     let currentRequestIdForAction = null;
-    let currentUser = null; // Stores user object (from /users/me/) if authenticated
+    let currentUser = null;
 
     // --- Authentication & Navigation Helpers ---
 
-    /**
-     * Checks if a user is currently authenticated based on the currentUser state.
-     * @returns {boolean} True if authenticated, false otherwise.
-     */
     function isAuthenticated() {
         return currentUser !== null;
     }
 
-    /**
-     * Updates the visibility and content of navigation links based on authentication status
-     * and whether the user has associated mentor/mentee profiles.
-     */
     function updateNavLinks() {
-        // Handle Register/Login/Logout visibility
         if (registerNavItem) registerNavItem.hidden = isAuthenticated();
         if (loginNavItem) loginNavItem.hidden = isAuthenticated();
         if (logoutNavItem) logoutNavItem.hidden = !isAuthenticated();
 
-        // Handle dynamic dashboard/signup links visibility
         if (isAuthenticated() && currentUser) {
-            // Mentor-specific links
             if (navMentorDashboard) {
                 if (currentUser.mentor_profile_id) {
                     navMentorDashboard.querySelector('a').href = `/dashboard/mentor/${currentUser.mentor_profile_id}`;
                     navMentorDashboard.hidden = false;
-                    if (navBecomeMentor) navBecomeMentor.hidden = true; // Hide "Become a Mentor" if already a mentor
+                    if (navBecomeMentor) navBecomeMentor.hidden = true;
                 } else {
                     navMentorDashboard.hidden = true;
-                    if (navBecomeMentor) navBecomeMentor.hidden = false; // Show "Become a Mentor" if not
+                    if (navBecomeMentor) navBecomeMentor.hidden = false;
                 }
             }
-            // Mentee-specific links
             if (navMenteeDashboard) {
                 if (currentUser.mentee_profile_id) {
                     navMenteeDashboard.querySelector('a').href = `/dashboard/mentee/${currentUser.mentee_profile_id}`;
                     navMenteeDashboard.hidden = false;
-                    if (navFindMentor) navFindMentor.hidden = true; // Hide "Find a Mentor" if already a mentee
-                    if (navFeedback) navFeedback.hidden = false;     // Show feedback if already a mentee
+                    if (navFindMentor) navFindMentor.hidden = true;
+                    if (navFeedback) navFeedback.hidden = false;
                 } else {
                     navMenteeDashboard.hidden = true;
-                    if (navFindMentor) navFindMentor.hidden = false; // Show "Find a Mentor" if not
-                    if (navFeedback) navFeedback.hidden = true;      // Hide feedback if not a mentee
+                    if (navFindMentor) navFindMentor.hidden = false;
+                    if (navFeedback) navFeedback.hidden = true;
                 }
             }
         } else {
-            // Not authenticated, hide all dynamic profile links and show generic signup/login
             if (navMentorDashboard) navMentorDashboard.hidden = true;
             if (navMenteeDashboard) navMenteeDashboard.hidden = true;
             if (navBecomeMentor) navBecomeMentor.hidden = false;
@@ -126,24 +116,68 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    /**
-     * Checks for an active user session by calling /users/me/ and updates UI accordingly.
-     * Handles redirects for protected pages if no session is active or user has existing profile.
-     */
+    // Intercept "Find Your Mentor" for existing mentees to go straight to recommendations
+    const navFindMentorLink = navFindMentor ? navFindMentor.querySelector('a') : null;
+    if (navFindMentorLink) {
+        navFindMentorLink.addEventListener('click', async (event) => {
+            // If user is logged in and already has a mentee profile, run match and redirect to recommendations
+            if (isAuthenticated() && currentUser?.mentee_profile_id) {
+                event.preventDefault();
+                try {
+                    const menteeId = currentUser.mentee_profile_id;
+
+                    // Ensure we have the latest mentee profile
+                    const profileResponse = await authorizedFetch(`/api/mentees/${menteeId}`, { method: 'GET' });
+                    if (!profileResponse.ok) {
+                        throw new Error('Failed to fetch mentee profile for matching');
+                    }
+                    const menteeProfileData = await profileResponse.json();
+
+                    // Trigger match using existing profile
+                    const matchResponse = await authorizedFetch(`/api/mentees/${menteeId}/match`, {
+                        method: 'POST',
+                        body: JSON.stringify(menteeProfileData),
+                    });
+                    const result = await matchResponse.json();
+
+                    if (matchResponse.ok) {
+                        sessionStorage.setItem('menteeIdForRecommendations', menteeId.toString());
+                        if (result.recommendations && result.recommendations.length > 0) {
+                            sessionStorage.setItem('initialRecommendations', JSON.stringify(result.recommendations));
+                            sessionStorage.removeItem('recommendationsMessage');
+                        } else {
+                            sessionStorage.setItem('initialRecommendations', JSON.stringify([]));
+                            sessionStorage.setItem('recommendationsMessage', result.message || 'No suitable mentors found based on your criteria. Please try broadening your preferences.');
+                        }
+                        window.location.href = `/mentees/${menteeId}/recommendations`;
+                    } else {
+                        // Fall back to mentee dashboard on failure
+                        console.error('Error running match from nav:', result);
+                        window.location.href = `/dashboard/mentee/${menteeId}`;
+                    }
+                } catch (e) {
+                    console.error('Network error running match from nav:', e);
+                    // As a fallback, let them go to signup if something unexpected happened
+                    window.location.href = '/signup/mentee';
+                }
+            }
+            // else: not authenticated or no mentee profile → default link to /signup/mentee
+        });
+    }
+
     async function checkSessionAndFetchUser() {
         try {
-            const response = await fetch('/users/me/', { 
-                method: 'GET', 
+            const response = await fetch('/users/me/', {
+                method: 'GET',
                 headers: {'Content-Type': 'application/json'},
-                credentials: 'include' // Ensures HttpOnly cookies are sent by the browser
+                credentials: 'include'
             });
             if (response.ok) {
                 currentUser = await response.json();
                 console.log('Session active. User:', currentUser.username, 'Mentor ID:', currentUser.mentor_profile_id, 'Mentee ID:', currentUser.mentee_profile_id);
-                
-                updateNavLinks(); // Update generic login/logout and dynamic profile links
 
-                // Redirect logic: If logged in, prevent access to signup pages they no longer need
+                updateNavLinks();
+
                 const path = window.location.pathname;
                 if (path.startsWith('/signup/mentor') && currentUser.mentor_profile_id) {
                     window.location.href = `/dashboard/mentor/${currentUser.mentor_profile_id}`;
@@ -153,11 +187,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
             } else {
-                currentUser = null; // Clear user state if session is invalid
+                currentUser = null;
                 console.log('No active session or token expired.');
-                updateNavLinks(); // This will show Register/Login links again
+                updateNavLinks();
 
-                // Redirect from protected dashboard/feedback pages if no session is active
                 const path = window.location.pathname;
                 if (path.startsWith('/dashboard/') || path.startsWith('/feedback')) {
                     console.log('Redirecting from protected page due to no active session.');
@@ -171,30 +204,37 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    /**
-     * Logs out the current user by sending a request to the backend to clear the HttpOnly cookie.
-     */
     async function logout() {
         try {
-            const response = await fetch('/logout', { 
+            const response = await fetch('/logout', {
                 method: 'POST',
-                credentials: 'include' // Ensures HttpOnly cookie is sent to be cleared
-            }); 
+                credentials: 'include'
+            });
             if (response.ok) {
-                currentUser = null; 
+                currentUser = null;
                 console.log('Logged out successfully from backend and client.');
                 updateNavLinks();
-                window.location.href = '/login'; 
+                // Clear any stored recommendations on logout
+                sessionStorage.removeItem('initialRecommendations');
+                sessionStorage.removeItem('menteeIdForRecommendations');
+                sessionStorage.removeItem('recommendationsMessage');
+                window.location.href = '/login';
             } else {
                 console.error('Logout failed on backend:', await response.text());
-                currentUser = null; // Still clear client-side state for UX
+                currentUser = null;
                 updateNavLinks();
+                sessionStorage.removeItem('initialRecommendations');
+                sessionStorage.removeItem('menteeIdForRecommendations');
+                sessionStorage.removeItem('recommendationsMessage');
                 window.location.href = '/login';
             }
         } catch (error) {
             console.error('Network error during logout:', error);
-            currentUser = null; // Still clear client-side state for UX
+            currentUser = null;
             updateNavLinks();
+            sessionStorage.removeItem('initialRecommendations');
+            sessionStorage.removeItem('menteeIdForRecommendations');
+            sessionStorage.removeItem('recommendationsMessage');
             window.location.href = '/login';
         }
     }
@@ -204,81 +244,56 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Generic Message Handlers ---
 
-    /**
-     * Displays a message to the user, applying appropriate styling.
-     * @param {HTMLElement} messageElement - The HTML element to display the message in.
-     * @param {string} message - The message text or HTML to display.
-     * @param {'success'|'error'} type - The type of message ('success' or 'error') for styling.
-     */
     function showFormMessage(messageElement, message, type) {
         if (messageElement) {
             messageElement.innerHTML = message;
             messageElement.setAttribute('data-variant', type);
-            messageElement.hidden = false; 
+            messageElement.hidden = false;
         }
     }
 
-    /**
-     * Hides a displayed message.
-     * @param {HTMLElement} messageElement - The HTML element containing the message.
-     */
     function hideFormMessage(messageElement) {
         if (messageElement) {
             messageElement.innerHTML = '';
             messageElement.removeAttribute('data-variant');
-            messageElement.hidden = true; 
+            messageElement.hidden = true;
         }
     }
 
-    // --- Modal Toggle Helpers (Generic for Pico.css dialogs) ---
+    // --- Modal Toggle Helpers ---
 
-    /**
-     * Toggles the visibility of a Pico.css dialog modal.
-     * @param {HTMLDialogElement} dialogElement - The <dialog> element to toggle.
-     * @param {Event} [event] - Optional event object to prevent default behavior.
-     */
     function toggleDialog(dialogElement, event) {
         if (!dialogElement) return;
         if (event) event.preventDefault();
         if (dialogElement.hasAttribute('open')) {
             dialogElement.removeAttribute('open');
-            document.body.style.overflow = ''; // Restore scroll
+            document.body.style.overflow = '';
         } else {
             dialogElement.setAttribute('open', '');
-            document.body.style.overflow = 'hidden'; // Prevent scroll
+            document.body.style.overflow = 'hidden';
         }
     }
-    // Make modal toggles globally accessible (defined in base.html)
     window.togglePickMentorModal = (event) => toggleDialog(pickMentorModal, event);
     window.toggleRejectModal = (event) => toggleDialog(rejectModal, event);
 
-    // --- Centralized API Call Helper (for protected endpoints) ---
 
-    /**
-     * Performs an authorized fetch request, automatically including HttpOnly cookies
-     * and handling 401 Unauthorized responses by logging out the user.
-     * @param {string} url - The URL to fetch.
-     * @param {RequestInit} [options={}] - Standard fetch options.
-     * @returns {Promise<Response>} The fetch response.
-     * @throws {Error} If unauthorized or a network error occurs.
-     */
+    // --- Centralized API Call Helper ---
+
     async function authorizedFetch(url, options = {}) {
         const headers = { ...options.headers };
 
-        // Default Content-Type to application/json if body exists and not explicitly set
         if (options.body && !headers['Content-Type']) {
             headers['Content-Type'] = 'application/json';
         } else if (!options.body && ['GET', 'HEAD'].includes(options.method?.toUpperCase())) {
-            // Remove Content-Type for GET/HEAD requests if no body
             delete headers['Content-Type'];
         }
-        
+
         const response = await fetch(url, { ...options, headers, credentials: 'include' });
 
         if (response.status === 401) {
             console.warn('Unauthorized access: Session expired or invalid. Redirecting to login.');
-            logout(); // Trigger full logout sequence
-            throw new Error('Unauthorized: API responded with 401.'); 
+            logout();
+            throw new Error('Unauthorized: API responded with 401.');
         }
         return response;
     }
@@ -292,7 +307,7 @@ document.addEventListener('DOMContentLoaded', () => {
         registerForm.addEventListener('submit', async (event) => {
             event.preventDefault();
             hideFormMessage(registerResponseMessage);
-            if (passwordMatchFeedback) hideFormMessage(passwordMatchFeedback); // Clear password mismatch on new submit
+            if (passwordMatchFeedback) hideFormMessage(passwordMatchFeedback);
 
             const formData = new FormData(registerForm);
             const username = formData.get('username');
@@ -316,8 +331,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const result = await response.json();
 
                 if (response.ok) {
-                    showFormMessage(registerResponseMessage, `Registration successful for ${result.username}! Please <a href="/login">login</a>.`, 'success');
-                    registerForm.reset();
+                    // Point 1: Redirect immediately to login after successful registration
+                    window.location.href = '/login';
                 } else {
                     showFormMessage(registerResponseMessage, `Error: ${result.detail || 'Could not register.'}`, 'error');
                     console.error('API Error:', result);
@@ -351,13 +366,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
                     body: formBody.toString(),
-                    credentials: 'include' 
+                    credentials: 'include'
                 });
 
                 if (response.ok) {
-                    await checkSessionAndFetchUser(); // Refresh session state and nav links
-                    showFormMessage(loginResponseMessage, `Login successful! Welcome, ${username}. Redirecting...`, 'success');
-                    window.location.href = '/'; // Redirect to homepage
+                    await checkSessionAndFetchUser();
+                    // Redirect based on user role/profile presence
+                    if (currentUser?.mentee_profile_id) {
+                        window.location.href = `/dashboard/mentee/${currentUser.mentee_profile_id}`;
+                    } else if (currentUser?.mentor_profile_id) {
+                        window.location.href = `/dashboard/mentor/${currentUser.mentor_profile_id}`;
+                    } else {
+                        window.location.href = '/get-started';
+                    }
                 } else {
                     const result = await response.json();
                     showFormMessage(loginResponseMessage, `Error: ${result.detail || 'Could not log in.'}`, 'error');
@@ -369,7 +390,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-
 
     // --- Mentor Signup Form Logic ---
     if (mentorSignupForm) {
@@ -387,7 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const formData = new FormData(mentorSignupForm);
             const data = {};
 
-            data.name = formData.get('name'); 
+            data.name = formData.get('name');
             data.bio = formData.get('bio');
             data.expertise = formData.get('expertise') || null;
             data.capacity = parseInt(formData.get('capacity'), 10);
@@ -410,7 +430,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             data.preferences = (preferences.industries || preferences.languages) ? preferences : null;
 
-            // --- NEW DEMOGRAPHICS HANDLING (individual fields) ---
             const demographics = {};
             const gender = formData.get('demographics_gender');
             if (gender && gender.trim() !== '') {
@@ -426,7 +445,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             data.demographics = (Object.keys(demographics).length > 0) ? demographics : null;
-            // --- END NEW DEMOGRAPHICS HANDLING ---
 
             console.log('Sending mentor data:', data);
 
@@ -441,7 +459,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (response.ok) {
                     showFormMessage(mentorResponseMessage, `Mentor ${result.name} registered successfully! Your ID is: ${result.id}. Redirecting to your dashboard...`, 'success');
                     mentorSignupForm.reset();
-                    window.location.href = `/dashboard/mentor/${result.id}`; 
+                    window.location.href = `/dashboard/mentor/${result.id}`;
                 } else {
                     showFormMessage(mentorResponseMessage, `Error: ${result.detail || 'Could not register mentor.'}`, 'error');
                     console.error('API Error:', result);
@@ -453,18 +471,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Mentee Signup Form Logic ---
+    // --- Mentee Signup Form Logic (UPDATED for Recommendations Page) ---
     if (menteeSignupForm) {
         hideFormMessage(menteeResponseMessage);
 
         menteeSignupForm.addEventListener('submit', async (event) => {
             event.preventDefault();
             hideFormMessage(menteeResponseMessage);
-            // Recommendations section is no longer on this page, only on dashboard.
-            // So these can be removed from here.
-            // if (recommendationsSection) recommendationsSection.hidden = true;
-            // if (mentorRecommendationsDiv) mentorRecommendationsDiv.innerHTML = '';
-
 
             if (!isAuthenticated()) {
                 showFormMessage(menteeResponseMessage, 'You must be logged in to find a mentor. Please <a href="/login">Login</a> or <a href="/register">Register</a>.', 'error');
@@ -474,7 +487,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const formData = new FormData(menteeSignupForm);
             const data = {};
 
-            data.name = formData.get('name'); 
+            data.name = formData.get('name');
             data.bio = formData.get('bio');
             data.goals = formData.get('goals');
             data.mentorship_style = formData.get('mentorship_style') || null;
@@ -500,7 +513,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('Sending mentee data for matching:', data);
 
             try {
-                const response = await authorizedFetch('/match/', {
+                const response = await authorizedFetch('/api/mentees/match-or-create', {
                     method: 'POST',
                     body: JSON.stringify(data),
                 });
@@ -509,8 +522,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (response.ok) {
                     currentMenteeId = result.mentee_id;
-                    showFormMessage(menteeResponseMessage, `Mentee ${result.mentee_name} registered. Your ID is: ${currentMenteeId}. Redirecting to your dashboard...`, 'success');
-                    window.location.href = `/dashboard/mentee/${currentMenteeId}`;
+                    
+                    sessionStorage.setItem('menteeIdForRecommendations', currentMenteeId.toString());
+                    if (result.recommendations && result.recommendations.length > 0) {
+                        sessionStorage.setItem('initialRecommendations', JSON.stringify(result.recommendations));
+                    } else {
+                        sessionStorage.setItem('initialRecommendations', JSON.stringify([]));
+                        sessionStorage.setItem('recommendationsMessage', result.message || "No suitable mentors found based on your criteria. Please try broadening your preferences.");
+                    }
+
+                    showFormMessage(menteeResponseMessage, `Mentee ${result.mentee_name} registered. Redirecting to matches...`, 'success');
+                    window.location.href = `/mentees/${currentMenteeId}/recommendations`;
+
                 } else {
                     showFormMessage(menteeResponseMessage, `Error: ${result.detail || 'Could not find matches.'}`, 'error');
                     console.error('API Error:', result);
@@ -522,7 +545,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- NEW: Find New Mentors Button on Mentee Dashboard ---
+    // Find New Mentors Button (on Mentee Dashboard) ---
     if (findNewMentorsBtn) {
         findNewMentorsBtn.addEventListener('click', async () => {
             if (!isAuthenticated()) {
@@ -534,36 +557,36 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            hideFormMessage(menteeRequestsMessage); 
-            if (recommendationsSection) recommendationsSection.hidden = true; // Hide old recommendations
-            if (mentorRecommendationsDiv) mentorRecommendationsDiv.innerHTML = '<p aria-busy="true">Finding mentors...</p>'; // Show loading indicator
+            hideFormMessage(menteeRequestsMessage);
+            if (findNewMentorsBtn) findNewMentorsBtn.setAttribute('aria-busy', 'true');
 
 
             try {
-                // Fetch mentee's current profile from backend to use for matching
-                const profileResponse = await fetch(`/mentees/${currentMenteeDashboardId}`, { method: 'GET' });
+                const profileResponse = await authorizedFetch(`/api/mentees/${currentMenteeDashboardId}`, { method: 'GET' });
                 if (!profileResponse.ok) {
                     const errorDetail = await profileResponse.json().then(data => data.detail || 'Unknown error').catch(() => 'Unknown error during profile fetch');
                     throw new Error(`Failed to fetch mentee profile for matching: ${errorDetail}`);
                 }
                 const menteeProfileData = await profileResponse.json();
 
-                // Call the /match/ endpoint with this data
-                const response = await authorizedFetch('/match/', {
+                const response = await authorizedFetch(`/api/mentees/${currentMenteeDashboardId}/match`, {
                     method: 'POST',
-                    body: JSON.stringify(menteeProfileData), // Send current profile data for matching
+                    body: JSON.stringify(menteeProfileData),
                 });
 
                 const result = await response.json();
 
                 if (response.ok) {
+                    sessionStorage.setItem('menteeIdForRecommendations', currentMenteeDashboardId.toString());
                     if (result.recommendations && result.recommendations.length > 0) {
-                        displayRecommendations(result.recommendations); // This function will display in recommendationsSection
+                        sessionStorage.setItem('initialRecommendations', JSON.stringify(result.recommendations));
                     } else {
-                        if (recommendationsMessage) recommendationsMessage.textContent = result.message || "No suitable mentors found based on your criteria. Please try broadening your preferences.";
-                        if (recommendationsSection) recommendationsSection.hidden = false;
+                        sessionStorage.setItem('initialRecommendations', JSON.stringify([]));
+                        sessionStorage.setItem('recommendationsMessage', result.message || "No suitable mentors found based on your criteria. Please try broadening your preferences.");
                     }
                     showFormMessage(menteeRequestsMessage, result.message, 'success');
+                    window.location.href = `/mentees/${currentMenteeDashboardId}/recommendations`;
+
                 } else {
                     showFormMessage(menteeRequestsMessage, `Error finding matches: ${result.detail || 'Could not find matches.'}`, 'error');
                     console.error('API Error:', result);
@@ -571,15 +594,22 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (error) {
                 showFormMessage(menteeRequestsMessage, `Network error or unable to connect to server for finding matches: ${error.message}`, 'error');
                 console.error('Fetch error for finding matches:', error);
+            } finally {
+                if (findNewMentorsBtn) findNewMentorsBtn.removeAttribute('aria-busy');
             }
         });
     }
 
-    // --- Function to Display Recommendations (now called on dashboard) ---
-    function displayRecommendations(recommendations) {
-        if (mentorRecommendationsDiv) mentorRecommendationsDiv.innerHTML = ''; // Clear loading indicator
-        if (recommendationsMessage) recommendationsMessage.textContent = "Here are your top mentor recommendations:";
-        
+    // --- Function to Display Recommendations (UPDATED to use new elements) ---
+    function displayRecommendations(recommendations, message = "Here are your top mentor recommendations:") {
+        if (mentorRecommendationsDiv) mentorRecommendationsDiv.innerHTML = '';
+        if (recommendationsPageMessage) recommendationsPageMessage.textContent = message;
+
+        if (recommendations.length === 0) {
+             if (mentorRecommendationsDiv) mentorRecommendationsDiv.innerHTML = `<p>${message}</p>`;
+             return;
+        }
+
         recommendations.forEach(mentor => {
             const card = document.createElement('article');
             const rawBio = mentor.mentor_bio_snippet || '';
@@ -589,8 +619,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <h4>${mentor.mentor_name || 'Unknown Mentor'}</h4>
                 <p>${bioSnippet}</p>
                 <p><strong>Expertise:</strong> ${mentor.mentor_details.expertise || 'Not specified'}</p>
-                <p><strong>Capacity:</strong> ${mentor.mentor_details.capacity_info || 'N/A'}</p>
-                <p><strong>Match Score:</strong> ${mentor.re_rank_score ? mentor.re_rank_score.toFixed(2) : 'N/A'}</p>
+                {# Point 6: Removed mentor capacity from recommendations page #}
                 <h5>Why this match?</h5>
                 <ul>
                     ${mentor.explanations.map(exp => `<li>${exp}</li>`).join('')}
@@ -601,7 +630,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             if (mentorRecommendationsDiv) mentorRecommendationsDiv.appendChild(card);
         });
-        if (recommendationsSection) recommendationsSection.hidden = false;
+        if (recommendationsPageSection) recommendationsPageSection.hidden = false;
 
         document.querySelectorAll('.pick-mentor-btn').forEach(button => {
             button.addEventListener('click', (event) => {
@@ -610,6 +639,51 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (modalRequestMessage) modalRequestMessage.value = '';
                 togglePickMentorModal();
             });
+        });
+    }
+
+    // --- NEW: Logic for Recommendations Page Load ---
+    const recommendationsPathSegments = window.location.pathname.split('/');
+    if (recommendationsPathSegments[1] === 'mentees' && recommendationsPathSegments[3] === 'recommendations' && recommendationsPathSegments[2]) {
+        const menteeIdFromPath = parseInt(recommendationsPathSegments[2], 10);
+        const storedMenteeId = sessionStorage.getItem('menteeIdForRecommendations');
+        const storedRecommendations = sessionStorage.getItem('initialRecommendations');
+        const storedMessage = sessionStorage.getItem('recommendationsMessage');
+
+        if (menteeIdFromPath === parseInt(storedMenteeId || 'NaN', 10) && storedRecommendations) {
+            const recommendations = JSON.parse(storedRecommendations);
+            displayRecommendations(recommendations, storedMessage || "Here are your top mentor recommendations:");
+            
+            // Set up "Proceed to Dashboard" button
+            if (proceedToDashboardBtn) {
+                proceedToDashboardBtn.addEventListener('click', () => {
+                    // Clear recommendation data when proceeding
+                    sessionStorage.removeItem('initialRecommendations');
+                    sessionStorage.removeItem('menteeIdForRecommendations');
+                    sessionStorage.removeItem('recommendationsMessage');
+                    window.location.href = `/dashboard/mentee/${menteeIdFromPath}`;
+                });
+            }
+        } else {
+            if (recommendationsPageMessage) {
+                recommendationsPageMessage.textContent = "No recent recommendations found. Please try finding new matches from your dashboard.";
+                if (mentorRecommendationsDiv) mentorRecommendationsDiv.innerHTML = '';
+            }
+            if (proceedToDashboardBtn) {
+                 proceedToDashboardBtn.addEventListener('click', () => {
+                    sessionStorage.removeItem('initialRecommendations');
+                    sessionStorage.removeItem('menteeIdForRecommendations');
+                    sessionStorage.removeItem('recommendationsMessage');
+                    window.location.href = `/dashboard/mentee/${menteeIdFromPath}`;
+                });
+            }
+             console.warn('No valid recommendations found in session storage for this mentee ID. Consider redirecting.');
+        }
+        // Also clear on page unload to avoid stale data lingering across sessions
+        window.addEventListener('beforeunload', () => {
+            sessionStorage.removeItem('initialRecommendations');
+            sessionStorage.removeItem('menteeIdForRecommendations');
+            sessionStorage.removeItem('recommendationsMessage');
         });
     }
 
@@ -631,16 +705,15 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     async function fetchMentorDetails(mentorId) {
         if (!mentorDashboardProfileSummary || !mentorProfileMessage || !mentorDashboardName) return;
-        hideFormMessage(mentorProfileMessage); // Hide previous messages
+        hideFormMessage(mentorProfileMessage);
 
         try {
-            const response = await fetch(`/mentors/${mentorId}`, { method: 'GET' });
+            const response = await fetch(`/api/mentors/${mentorId}`, { method: 'GET' });
             if (response.ok) {
                 const mentor = await response.json();
-                if (mentorDashboardName) mentorDashboardName.textContent = mentor.name; // Display name in dashboard title
+                if (mentorDashboardName) mentorDashboardName.textContent = mentor.name;
                 mentorDashboardProfileSummary.innerHTML = `
                     <h2>Your Profile</h2>
-                    <p><strong>Mentor ID:</strong> ${mentor.id}</p>
                     <p><strong>Name:</strong> ${mentor.name}</p>
                     <p><strong>Bio:</strong> ${mentor.bio}</p>
                     <p><strong>Expertise:</strong> ${mentor.expertise || 'Not specified'}</p>
@@ -649,8 +722,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     <p><strong>Preferences:</strong> Industries: ${(mentor.preferences?.industries || []).join(', ') || 'Any'}, Languages: ${(mentor.preferences?.languages || []).join(', ') || 'Any'}</p>
                     ${mentor.demographics ? `<p><strong>Demographics:</strong> Gender: ${mentor.demographics.gender || 'N/A'}, Ethnicity: ${mentor.demographics.ethnicity || 'N/A'}, Years Exp: ${mentor.demographics.years_experience || 'N/A'}</p>` : ''}
                 `;
-                // Re-append the message element to ensure it's available for future showFormMessage calls
-                // (innerHTML replaces content, so we ensure the message <p> is still there)
                 if (!mentorDashboardProfileSummary.contains(mentorProfileMessage)) {
                     mentorDashboardProfileSummary.appendChild(mentorProfileMessage);
                 }
@@ -671,7 +742,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function fetchMentorshipRequests(mentorId) {
         if (!mentorRequestsList || !requestsMessage) return;
         hideFormMessage(requestsMessage);
-        mentorRequestsList.innerHTML = '<p aria-busy="true">Loading your requests...</p>'; // Show loading indicator
+        mentorRequestsList.innerHTML = '<p aria-busy="true">Loading your requests...</p>';
 
         try {
             const response = await authorizedFetch(`/api/mentors/${mentorId}/requests`, { method: 'GET' });
@@ -716,13 +787,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const categorySection = document.createElement('section');
             categorySection.className = `request-category ${type}-requests`;
-            
+
             const header = document.createElement('h3');
             header.textContent = title;
             categorySection.appendChild(header);
 
             const cardsContainer = document.createElement('div');
-            cardsContainer.className = 'grid'; 
+            cardsContainer.className = 'grid';
             requestsArray.forEach(request => {
                 cardsContainer.appendChild(createMentorRequestCard(request, type));
             });
@@ -818,14 +889,14 @@ document.addEventListener('DOMContentLoaded', () => {
         let queryParams = '';
 
         if (action === 'accept') {
-            endpoint = `/mentor/${mentorId}/request/${requestId}/accept`;
+            endpoint = `/api/mentor/${mentorId}/request/${requestId}/accept`; // Corrected API path
         } else if (action === 'reject') {
-            endpoint = `/mentor/${mentorId}/request/${requestId}/reject`;
+            endpoint = `/api/mentor/${mentorId}/request/${requestId}/reject`; // Corrected API path
             if (rejectionReason) {
                 queryParams = `?rejection_reason=${encodeURIComponent(rejectionReason)}`;
             }
         } else if (action === 'complete') {
-            endpoint = `/mentor/${mentorId}/request/${requestId}/complete`;
+            endpoint = `/api/mentor/${mentorId}/request/${requestId}/complete`; // Corrected API path
         } else {
             showFormMessage(requestsMessage, `Unknown action: ${action}`, 'error');
             return;
@@ -839,8 +910,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (response.ok) {
                 showFormMessage(requestsMessage, `Request ${requestId} ${action.toUpperCase()}ED successfully!`, 'success');
-                fetchMentorshipRequests(mentorId); // Refresh requests list
-                fetchMentorDetails(mentorId); // Refresh mentor details (capacity)
+                fetchMentorshipRequests(mentorId);
+                fetchMentorDetails(mentorId);
             } else {
                 showFormMessage(requestsMessage, `Error performing ${action} for request ${requestId}: ${result.detail || 'Unknown error.'}`, 'error');
                 console.error(`API Error for ${action} request ${requestId}:`, result);
@@ -857,7 +928,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const rejectionReason = rejectionReasonInput ? rejectionReasonInput.value : '';
             await performMentorAction(currentMentorDashboardId, currentRequestIdForAction, 'reject', rejectionReason);
             toggleRejectModal();
-            if (rejectionReasonInput) rejectionReasonInput.value = ''; // Clear input after use
+            if (rejectionReasonInput) rejectionReasonInput.value = '';
         });
     }
 
@@ -868,29 +939,28 @@ document.addEventListener('DOMContentLoaded', () => {
         currentMenteeDashboardId = parseInt(menteePathSegments[3], 10);
         if (!isNaN(currentMenteeDashboardId)) {
             fetchMenteeDetails(currentMenteeDashboardId);
-            fetchMenteeMentorshipRequests(currentMenteeDashboardId);
-            // The "Find New Mentors" button listener (`findNewMentorsBtn`) is attached globally if it exists.
+            fetchMenteeMentorshipRequests(currentMenteeDashboardId); // <--- CORRECTED CALL
         } else {
             showFormMessage(menteeProfileMessage, 'Invalid mentee ID in URL.', 'error');
         }
     }
-
+    
     /**
      * Fetches and displays details for a specific mentee on their dashboard.
      * @param {number} menteeId - The ID of the mentee.
      */
     async function fetchMenteeDetails(menteeId) {
         if (!menteeDashboardProfileSummary || !menteeProfileMessage || !menteeDashboardName) return;
-        hideFormMessage(menteeProfileMessage); 
+        hideFormMessage(menteeProfileMessage);
 
         try {
-            const response = await fetch(`/mentees/${menteeId}`, { method: 'GET' });
+            // CORRECTED: Use the /api/ endpoint for fetching JSON data
+            const response = await fetch(`/api/mentees/${menteeId}`, { method: 'GET' }); // <--- FIX HERE
             if (response.ok) {
                 const mentee = await response.json();
-                if (menteeDashboardName) menteeDashboardName.textContent = mentee.name; // Display name in dashboard title
+                if (menteeDashboardName) menteeDashboardName.textContent = mentee.name;
                 menteeDashboardProfileSummary.innerHTML = `
                     <h2>Your Profile</h2>
-                    <p><strong>Mentee ID:</strong> ${mentee.id}</p>
                     <p><strong>Name:</strong> ${mentee.name}</p>
                     <p><strong>Bio:</strong> ${mentee.bio}</p>
                     <p><strong>Goals:</strong> ${mentee.goals || 'Not specified'}</p>
@@ -898,7 +968,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     <p><strong>Availability:</strong> ${mentee.availability?.hours_per_month || 'Not specified'} hours/month</p>
                     <p><strong>Preferences:</strong> Industries: ${(mentee.preferences?.industries || []).join(', ') || 'Any'}, Languages: ${(mentee.preferences?.languages || []).join(', ') || 'Any'}</p>
                 `;
-                // Re-append the message element to ensure it's available for future showFormMessage calls
                 if (!menteeDashboardProfileSummary.contains(menteeProfileMessage)) {
                     menteeDashboardProfileSummary.appendChild(menteeProfileMessage);
                 }
@@ -919,7 +988,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function fetchMenteeMentorshipRequests(menteeId) {
         if (!menteeDashboardRequestsList || !menteeRequestsMessage) return;
         hideFormMessage(menteeRequestsMessage);
-        menteeDashboardRequestsList.innerHTML = '<p aria-busy="true">Loading your requests...</p>'; // Show loading indicator
+        menteeDashboardRequestsList.innerHTML = '<p aria-busy="true">Loading your requests...</p>';
 
         try {
             const response = await authorizedFetch(`/api/mentees/${menteeId}/requests`, { method: 'GET' });
@@ -964,13 +1033,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const categorySection = document.createElement('section');
             categorySection.className = `request-category ${type}-requests`;
-            
+
             const header = document.createElement('h3');
             header.textContent = title;
             categorySection.appendChild(header);
 
             const cardsContainer = document.createElement('div');
-            cardsContainer.className = 'grid'; 
+            cardsContainer.className = 'grid';
             requestsArray.forEach(request => {
                 cardsContainer.appendChild(createMenteeRequestCard(request, type));
             });
@@ -1057,9 +1126,9 @@ document.addEventListener('DOMContentLoaded', () => {
         let method = 'PUT';
 
         if (action === 'cancel') {
-            endpoint = `/mentee/${menteeId}/request/${requestId}/cancel`;
+            endpoint = `/api/mentee/${menteeId}/request/${requestId}/cancel`; // Corrected API path
         } else if (action === 'conclude') {
-            endpoint = `/mentee/${menteeId}/request/${requestId}/conclude`;
+            endpoint = `/api/mentee/${menteeId}/request/${requestId}/conclude`; // Corrected API path
         } else {
             showFormMessage(menteeRequestsMessage, `Unknown mentee action: ${action}`, 'error');
             return;
@@ -1073,8 +1142,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (response.ok) {
                 showFormMessage(menteeRequestsMessage, `Request ${requestId} ${action.toUpperCase()}ED successfully!`, 'success');
-                fetchMenteeMentorshipRequests(menteeId); // Refresh requests
-                fetchMenteeDetails(menteeId); // Refresh mentee details 
+                fetchMenteeMentorshipRequests(menteeId);
+                fetchMenteeDetails(menteeId);
             } else {
                 showFormMessage(menteeRequestsMessage, `Error performing ${action} for request ${requestId}: ${result.detail || 'Unknown error.'}`, 'error');
                 console.error(`API Error for ${action} request ${requestId}:`, result);
@@ -1106,7 +1175,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const rating = parseInt(formData.get('rating'), 10);
             const comment = formData.get('comment') || null;
 
-            // Basic client-side validation
             if (isNaN(mentee_id) || mentee_id <= 0) {
                 showFormMessage(feedbackResponseMessage, 'Please enter a valid Mentee ID.', 'error');
                 return;
@@ -1131,7 +1199,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('Sending feedback data:', feedbackData);
 
             try {
-                const response = await authorizedFetch('/feedback/', {
+                const response = await authorizedFetch(`/api/mentees/${mentee_id}/feedback`, { // Corrected endpoint for feedback submission
                     method: 'POST',
                     body: JSON.stringify(feedbackData),
                 });
@@ -1151,6 +1219,187 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // --- Mentor Edit Page Logic ---
+    const mentorEditForm = document.getElementById('mentor-edit-form');
+    const mentorEditMessage = document.getElementById('mentor-edit-message');
+    const mentorDeleteBtn = document.getElementById('mentor-delete-btn');
+
+    if (mentorEditForm) {
+        hideFormMessage(mentorEditMessage);
+        // Ensure session known
+        await checkSessionAndFetchUser();
+        if (!isAuthenticated() || !currentUser?.mentor_profile_id) {
+            window.location.href = '/login';
+        } else {
+            const mentorId = currentUser.mentor_profile_id;
+            // Prefill
+            try {
+                const res = await authorizedFetch(`/api/mentors/${mentorId}`, { method: 'GET' });
+                const mentor = await res.json();
+                if (res.ok) {
+                    document.getElementById('mentor_name').value = mentor.name || '';
+                    document.getElementById('mentor_bio').value = mentor.bio || '';
+                    document.getElementById('mentor_expertise').value = mentor.expertise || '';
+                    document.getElementById('mentor_capacity').value = mentor.capacity || 1;
+                    document.getElementById('mentor_hours_per_month').value = mentor.availability?.hours_per_month ?? '';
+                    document.getElementById('mentor_preferences_industries').value = (mentor.preferences?.industries || []).join(', ');
+                    document.getElementById('mentor_preferences_languages').value = (mentor.preferences?.languages || []).join(', ');
+                } else {
+                    showFormMessage(mentorEditMessage, `Failed to load mentor profile: ${mentor.detail || 'Unknown error.'}`, 'error');
+                }
+            } catch (e) {
+                showFormMessage(mentorEditMessage, `Network error loading mentor profile: ${e.message}`, 'error');
+            }
+            // Submit
+            mentorEditForm.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                hideFormMessage(mentorEditMessage);
+
+                const data = {
+                    name: document.getElementById('mentor_name').value,
+                    bio: document.getElementById('mentor_bio').value,
+                    expertise: document.getElementById('mentor_expertise').value || null,
+                    capacity: parseInt(document.getElementById('mentor_capacity').value, 10),
+                    availability: (document.getElementById('mentor_hours_per_month').value !== '')
+                        ? { hours_per_month: parseInt(document.getElementById('mentor_hours_per_month').value, 10) } : null,
+                    preferences: (() => {
+                        const industries = document.getElementById('mentor_preferences_industries').value.trim();
+                        const languages = document.getElementById('mentor_preferences_languages').value.trim();
+                        const pref = {};
+                        if (industries) pref.industries = industries.split(',').map(s => s.trim()).filter(Boolean);
+                        if (languages) pref.languages = languages.split(',').map(s => s.trim()).filter(Boolean);
+                        return (pref.industries || pref.languages) ? pref : null;
+                    })()
+                };
+
+                try {
+                    const res = await authorizedFetch(`/mentors/${mentorId}`, {
+                        method: 'PUT',
+                        body: JSON.stringify(data)
+                    });
+                    const result = await res.json();
+                    if (res.ok) {
+                        showFormMessage(mentorEditMessage, 'Profile updated. Redirecting to dashboard...', 'success');
+                        window.location.href = `/dashboard/mentor/${mentorId}`;
+                    } else {
+                        showFormMessage(mentorEditMessage, `Update failed: ${result.detail || 'Unknown error.'}`, 'error');
+                    }
+                } catch (e) {
+                    showFormMessage(mentorEditMessage, `Network error updating profile: ${e.message}`, 'error');
+                }
+            });
+
+            if (mentorDeleteBtn) {
+                mentorDeleteBtn.addEventListener('click', async () => {
+                    if (!confirm('Are you sure you want to delete your mentor profile? This cannot be undone.')) return;
+                    try {
+                        const res = await authorizedFetch(`/mentors/${mentorId}`, { method: 'DELETE' });
+                        if (res.status === 204) {
+                            showFormMessage(mentorEditMessage, 'Profile deleted.', 'success');
+                            window.location.href = '/get-started';
+                        } else {
+                            const result = await res.json();
+                            showFormMessage(mentorEditMessage, `Delete failed: ${result.detail || 'Unknown error.'}`, 'error');
+                        }
+                    } catch (e) {
+                        showFormMessage(mentorEditMessage, `Network error deleting profile: ${e.message}`, 'error');
+                    }
+                });
+            }
+        }
+    }
+
+    // --- Mentee Edit Page Logic ---
+    const menteeEditForm = document.getElementById('mentee-edit-form');
+    const menteeEditMessage = document.getElementById('mentee-edit-message');
+    const menteeDeleteBtn = document.getElementById('mentee-delete-btn');
+
+    if (menteeEditForm) {
+        hideFormMessage(menteeEditMessage);
+        await checkSessionAndFetchUser();
+        if (!isAuthenticated() || !currentUser?.mentee_profile_id) {
+            window.location.href = '/login';
+        } else {
+            const menteeId = currentUser.mentee_profile_id;
+            // Prefill
+            try {
+                const res = await authorizedFetch(`/api/mentees/${menteeId}`, { method: 'GET' });
+                const mentee = await res.json();
+                if (res.ok) {
+                    document.getElementById('mentee_name').value = mentee.name || '';
+                    document.getElementById('mentee_bio').value = mentee.bio || '';
+                    document.getElementById('mentee_goals').value = mentee.goals || '';
+                    document.getElementById('mentee_style').value = mentee.mentorship_style || '';
+                    document.getElementById('mentee_hours_per_month').value = mentee.availability?.hours_per_month ?? '';
+                    document.getElementById('mentee_preferences_industries').value = (mentee.preferences?.industries || []).join(', ');
+                    document.getElementById('mentee_preferences_languages').value = (mentee.preferences?.languages || []).join(', ');
+                } else {
+                    showFormMessage(menteeEditMessage, `Failed to load mentee profile: ${mentee.detail || 'Unknown error.'}`, 'error');
+                }
+            } catch (e) {
+                showFormMessage(menteeEditMessage, `Network error loading mentee profile: ${e.message}`, 'error');
+            }
+            // Submit
+            menteeEditForm.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                hideFormMessage(menteeEditMessage);
+
+                const data = {
+                    name: document.getElementById('mentee_name').value,
+                    bio: document.getElementById('mentee_bio').value,
+                    goals: document.getElementById('mentee_goals').value || null,
+                    mentorship_style: document.getElementById('mentee_style').value || null,
+                    availability: (document.getElementById('mentee_hours_per_month').value !== '')
+                        ? { hours_per_month: parseInt(document.getElementById('mentee_hours_per_month').value, 10) } : null,
+                    preferences: (() => {
+                        const industries = document.getElementById('mentee_preferences_industries').value.trim();
+                        const languages = document.getElementById('mentee_preferences_languages').value.trim();
+                        const pref = {};
+                        if (industries) pref.industries = industries.split(',').map(s => s.trim()).filter(Boolean);
+                        if (languages) pref.languages = languages.split(',').map(s => s.trim()).filter(Boolean);
+                        return (pref.industries || pref.languages) ? pref : null;
+                    })()
+                };
+
+                try {
+                    const res = await authorizedFetch(`/mentees/${menteeId}`, {
+                        method: 'PUT',
+                        body: JSON.stringify(data)
+                    });
+                    const result = await res.json();
+                    if (res.ok) {
+                        showFormMessage(menteeEditMessage, 'Profile updated. Redirecting to dashboard...', 'success');
+                        window.location.href = `/dashboard/mentee/${menteeId}`;
+                    } else {
+                        showFormMessage(menteeEditMessage, `Update failed: ${result.detail || 'Unknown error.'}`, 'error');
+                    }
+                } catch (e) {
+                    showFormMessage(menteeEditMessage, `Network error updating profile: ${e.message}`, 'error');
+                }
+            });
+
+            if (menteeDeleteBtn) {
+                menteeDeleteBtn.addEventListener('click', async () => {
+                    if (!confirm('Are you sure you want to delete your mentee profile? This cannot be undone.')) return;
+                    try {
+                        const res = await authorizedFetch(`/mentees/${menteeId}`, { method: 'DELETE' });
+                        if (res.status === 204) {
+                            showFormMessage(menteeEditMessage, 'Profile deleted.', 'success');
+                            window.location.href = '/get-started';
+                        } else {
+                            const result = await res.json();
+                            showFormMessage(menteeEditMessage, `Delete failed: ${result.detail || 'Unknown error.'}`, 'error');
+                        }
+                    } catch (e) {
+                        showFormMessage(menteeEditMessage, `Network error deleting profile: ${e.message}`, 'error');
+                    }
+                });
+            }
+        }
+    }
+
+
 
     // --- Initial setup on page load ---
     checkSessionAndFetchUser();

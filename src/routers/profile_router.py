@@ -3,10 +3,10 @@ from fastapi import APIRouter, Depends, HTTPException, status, Response, Path
 from sqlalchemy.orm import Session
 
 from ..services import ProfileService
-from ..dependencies.auth_dependencies import get_owned_mentor
+from ..dependencies.auth_dependencies import get_owned_mentor, get_owned_mentee
 from ..dependencies.service_dependencies import get_profile_service
-from ..schemas import MentorCreate, MentorUpdate, MentorResponse
-from ..models import User, Mentor
+from ..schemas import MentorCreate, MentorUpdate, MentorResponse, MenteeResponse, MenteeUpdate
+from ..models import User, Mentor, Mentee
 from ..security import get_current_user
 from ..exceptions import BusinessLogicError
 
@@ -48,6 +48,33 @@ async def delete_mentor(
     """Delete a mentor profile"""
     try:
         profile_service.delete_mentor(owned_mentor)
+        return Response(status_code=204)
+    except BusinessLogicError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.put("/mentees/{mentee_id}", response_model=MenteeResponse)
+async def update_mentee(
+    mentee_id: int = Path(..., description="The ID of the mentee to update"),
+    mentee_data: MenteeUpdate = ...,
+    owned_mentee: Mentee = Depends(get_owned_mentee),
+    profile_service: ProfileService = Depends(get_profile_service)
+):
+    """Update a mentee profile"""
+    try:
+        mentee = profile_service.update_mentee(owned_mentee, mentee_data.model_dump(exclude_unset=True))
+        return mentee
+    except BusinessLogicError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.delete("/mentees/{mentee_id}", status_code=204)
+async def delete_mentee(
+    mentee_id: int = Path(..., description="The ID of the mentee to delete"),
+    owned_mentee: Mentee = Depends(get_owned_mentee),
+    profile_service: ProfileService = Depends(get_profile_service)
+):
+    """Delete a mentee profile"""
+    try:
+        profile_service.delete_mentee(owned_mentee)
         return Response(status_code=204)
     except BusinessLogicError as e:
         raise HTTPException(status_code=400, detail=str(e))

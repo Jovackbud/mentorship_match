@@ -1,0 +1,21 @@
+<!-- src/templates/recommendations.html -->
+{% extends "base.html" %}
+
+{% block content %}
+    <article>
+        <header>
+            <h1>Your Mentor Recommendations</h1>
+            <p class="lead" id="recommendations-message">Loading recommendations...</p>
+        </header>
+
+        <section id="recommendations-section">
+            <div id="mentor-recommendations" class="grid">
+                <!-- Mentor recommendations will be injected here by JavaScript -->
+                <p aria-busy="true">Fetching your personalized mentor matches...</p>
+            </div>
+            <footer>
+                <button type="button" class="secondary" id="proceed-to-dashboard-btn">Proceed to Dashboard</button>
+            </footer>
+        </section>
+    </article>
+{% endblock %}
