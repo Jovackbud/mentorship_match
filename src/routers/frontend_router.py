@@ -1,5 +1,5 @@
 # src/routers/frontend_router.py
-from fastapi import APIRouter, Request, HTTPException, status, Depends
+from fastapi import APIRouter, Request, HTTPException, status, Depends, RedirectResponse
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -22,17 +22,21 @@ async def register_page(request: Request):
 async def login_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request, "title": "Login"})
 
+@router.get("/get-started", response_class=HTMLResponse)
+async def get_started_page(request: Request):
+    return templates.TemplateResponse("get_started.html", {"request": request, "title": "Get Started"})
+
 @router.get("/signup/mentor", response_class=HTMLResponse)
 async def mentor_signup_page(request: Request):
+    if not request.cookies.get("access_token"):
+        return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
     return templates.TemplateResponse("mentor_signup.html", {"request": request, "title": "Become a Mentor"})
 
 @router.get("/signup/mentee", response_class=HTMLResponse)
 async def mentee_signup_page(request: Request):
+    if not request.cookies.get("access_token"):
+        return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
     return templates.TemplateResponse("mentee_signup.html", {"request": request, "title": "Find Your Mentor"})
-
-@router.get("/feedback", response_class=HTMLResponse)
-async def feedback_form_page(request: Request):
-    return templates.TemplateResponse("feedback_form.html", {"request": request, "title": "Submit Feedback"})
 
 @router.get("/dashboard/mentor/{mentor_id}", response_class=HTMLResponse)
 async def mentor_dashboard_page(request: Request, mentor_id: int, db: Session = Depends(get_db)):

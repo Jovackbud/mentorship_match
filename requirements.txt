@@ -7,3 +7,9 @@ psycopg2-binary~=2.9.9 # For PostgreSQL connectivity
 pandas~=2.2.2
 scikit-learn~=1.5.0 # For potential future re-ranking, included for completeness if a simple model is desired
 jinja2
+python-jose[cryptography]~=3.3.0 # JWT handling
+passlib[bcrypt]~=1.7.4 # Password hashing
+pydantic-settings~=2.2.1 # Settings management (Pydantic v2)
+filelock~=3.14.0 # FAISS index locking
+numpy~=1.26.4 # Explicitly required by embeddings and FAISS
+python-multipart~=0.0.9 # Required by OAuth2PasswordRequestForm for form parsing

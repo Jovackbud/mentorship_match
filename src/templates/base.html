@@ -19,7 +19,6 @@
             <li id="nav-find-mentor" hidden><a href="/signup/mentee" class="secondary">Find Your Mentor</a></li>
             <li id="nav-mentor-dashboard" hidden><a href="#" class="secondary">Mentor Dashboard</a></li> {# NO "MY" #}
             <li id="nav-mentee-dashboard" hidden><a href="#" class="secondary">Mentee Dashboard</a></li> {# NO "MY" #}
-            <li id="nav-feedback" hidden><a href="/feedback" class="secondary">Give Feedback</a></li>
             <li id="register-nav-item" hidden><a href="/register" class="secondary">Register</a></li>
             <li id="login-nav-item" hidden><a href="/login" class="secondary">Login</a></li>
             <li id="logout-nav-item" hidden><a href="javascript:void(0);" id="logout-btn" role="button" class="contrast">Logout</a></li>
@@ -44,6 +43,33 @@
             <footer>
                 <button type="button" class="secondary" onclick="togglePickMentorModal(event)">Cancel</button>
                 <button type="button" id="confirm-pick-mentor">Send Request</button>
+            </footer>
+        </article>
+    </dialog>
+
+    <!-- Reusable Feedback Modal (optional rating/comment) -->
+    <dialog id="feedback-modal">
+        <article>
+            <a href="#close" aria-label="Close" class="close" onclick="document.getElementById('feedback-modal').removeAttribute('open')"></a>
+            <h3>Optional Feedback</h3>
+            <p>Your action was successful. Would you like to leave optional feedback?</p>
+            <fieldset>
+                <legend>Rating (optional)</legend>
+                <div role="group" style="display:flex; gap:1rem; flex-wrap:wrap;">
+                    <label><input type="radio" name="feedback-rating" value="5"> 5</label>
+                    <label><input type="radio" name="feedback-rating" value="4"> 4</label>
+                    <label><input type="radio" name="feedback-rating" value="3"> 3</label>
+                    <label><input type="radio" name="feedback-rating" value="2"> 2</label>
+                    <label><input type="radio" name="feedback-rating" value="1"> 1</label>
+                </div>
+            </fieldset>
+            <label for="feedback-comment">Comment (optional)
+                <textarea id="feedback-comment" rows="3" placeholder="Share anything about this mentorship action..."></textarea>
+            </label>
+            <p id="feedback-inline-status" aria-live="polite" hidden style="margin:.25rem 0 0;color:var(--pico-color);"></p>
+            <footer>
+                <button type="button" class="secondary" id="feedback-skip-btn">Skip</button>
+                <button type="button" id="feedback-submit-btn">Submit Feedback</button>
             </footer>
         </article>
     </dialog>

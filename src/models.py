@@ -58,7 +58,8 @@ class Mentor(Base):
     mentorship_requests = relationship("MentorshipRequest", back_populates="mentor", cascade="all, delete-orphan")
 
     def __repr__(self):
-        return f"<Mentor(id={self.id}, name='{self.name}', expertise='{self.expertise[:20]}...')>"
+        expertise_preview = (self.expertise or '')[:20]
+        return f"<Mentor(id={self.id}, name='{self.name}', expertise='{expertise_preview}...')>"
 
 class Mentee(Base):
     __tablename__ = "mentees"

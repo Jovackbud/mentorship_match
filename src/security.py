@@ -29,23 +29,24 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 # --- JWT Token Handling ---
-settings = get_settings()
+# Avoid accessing settings at import time to prevent startup failures if .env is missing
 
-SECRET_KEY = settings.SECRET_KEY
-ALGORITHM = settings.ALGORITHM
-ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token") # Endpoint for token request
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")  # Endpoint for token request
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """Creates a JWT access token."""
+    settings = get_settings()
+    secret_key = settings.SECRET_KEY
+    algorithm = settings.ALGORITHM
+    access_token_expire_minutes = settings.ACCESS_TOKEN_EXPIRE_MINUTES
+
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=access_token_expire_minutes)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, secret_key, algorithm=algorithm)
     return encoded_jwt
 
 # --- NEW: User Retrieval and Authentication ---
@@ -72,6 +73,10 @@ def get_current_user(
     Accepts either Authorization: Bearer <token> OR HttpOnly cookie 'access_token'.
     Prefers Authorization header (convenient for Swagger/tests), falls back to cookie.
     """
+    settings = get_settings()
+    secret_key = settings.SECRET_KEY
+    algorithm = settings.ALGORITHM
+
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -100,7 +105,7 @@ def get_current_user(
         raise credentials_exception
 
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         username: Optional[str] = payload.get("sub")
         if username is None:
             raise credentials_exception

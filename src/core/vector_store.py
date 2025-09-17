@@ -15,6 +15,12 @@ settings = get_settings()
 FAISS_INDEX_PATH = settings.FAISS_INDEX_PATH
 FAISS_LOCK_PATH = settings.FAISS_LOCK_PATH
 
+def _l2_normalize(vec: np.ndarray) -> np.ndarray:
+    norm = np.linalg.norm(vec, axis=1, keepdims=True)
+    # Avoid division by zero
+    norm[norm == 0] = 1.0
+    return vec / norm
+
 class FaissIndex:
     def __init__(self, dimension: int):
         self.dimension = dimension
@@ -72,6 +78,7 @@ class FaissIndex:
     def add_embedding(self, embedding: List[float], mentor_id: int, auto_save: bool = True):
         """
         Adds or updates a single embedding to the FAISS index with its corresponding integer ID.
+        Uses L2 normalization so that inner product approximates cosine similarity.
         """
         if not embedding or mentor_id is None:
             logger.warning("Missing data to add embedding to FAISS index.")
@@ -91,6 +98,9 @@ class FaissIndex:
             if np.isnan(np_embedding).any() or np.isinf(np_embedding).any():
                 logger.error(f"Invalid embedding values (NaN or Inf) for mentor ID: {mentor_id}")
                 return
+
+            # Normalize to unit length for cosine/IP equivalence
+            np_embedding = _l2_normalize(np_embedding)
 
             self.index.add_with_ids(np_embedding, np.array([mentor_id]))
             logger.info(f"Added/Updated embedding for mentor ID: {mentor_id}. Total vectors in index: {self.index.ntotal}")
@@ -128,6 +138,7 @@ class FaissIndex:
     def search(self, query_embedding: List[float], k: int = 20) -> List[Tuple[int, float]]:
         """
         Searches the FAISS index for the top-K nearest neighbors with better error handling.
+        Normalizes the query embedding for cosine/IP equivalence.
         """
         if self.index is None or self.index.ntotal == 0:
             logger.warning("FAISS index is not initialized or empty. Cannot perform search.")
@@ -147,6 +158,9 @@ class FaissIndex:
             if np.isnan(query_np).any() or np.isinf(query_np).any():
                 logger.error("Query embedding contains invalid values (NaN or Inf)")
                 return []
+
+            # Normalize
+            query_np = _l2_normalize(query_np)
 
             # Limit k to available vectors
             actual_k = min(k, self.index.ntotal)

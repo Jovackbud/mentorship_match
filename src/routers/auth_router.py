@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from datetime import timedelta, datetime, timezone
 
 from ..database import get_db
-from ..schemas import UserCreate, UserResponse
+from ..schemas import UserCreate, UserResponse, Token
 from ..models import User, Mentor, Mentee
 from ..security import authenticate_user, create_access_token, get_password_hash, get_current_user
 from ..config import get_settings
@@ -29,13 +29,13 @@ async def register_user(user: UserCreate, db: Session = Depends(get_db)):
     db.refresh(db_user)
     return db_user
 
-@router.post("/token")
+@router.post("/token", response_model=Token)
 async def login(
     response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
-    """Login and set HttpOnly cookie"""
+    """Login and set HttpOnly cookie, also return OAuth2 token payload"""
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(status_code=401, detail="Incorrect username or password")
@@ -58,7 +58,7 @@ async def login(
         secure=settings.COOKIE_SECURE,
     )
     
-    return {"message": "Login successful"}
+    return {"access_token": access_token, "token_type": "bearer"}
 
 @router.get("/users/me", response_model=UserResponse)
 async def get_current_user_profile(

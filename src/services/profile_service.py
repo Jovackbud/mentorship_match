@@ -241,11 +241,7 @@ class ProfileService:
             self.db.delete(mentee)
             self.db.commit()
 
-            # Remove embedding (best-effort)
-            try:
-                faiss_index_manager.remove_embedding(f"mentee:{mentee_id}")
-            except Exception as e:
-                logger.warning(f"Failed to remove mentee {mentee_id} embedding from FAISS: {e}")
+            # No FAISS removal required for mentees: index stores only mentor vectors by integer mentor IDs
         except BusinessLogicError:
             raise
         except SQLAlchemyError as e:

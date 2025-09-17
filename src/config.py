@@ -35,7 +35,9 @@ class Settings(BaseSettings):
     MENTEE_MAX_ACTIVE_MENTORS: int = 1 # Max number of ACCEPTED mentorships a mentee can have
 
     # --- NEW: JWT Settings ---
-    SECRET_KEY: str # Will be read from .env
+    # NOTE: Provide a safe development default to avoid import-time crash.
+    # Override via .env in production.
+    SECRET_KEY: str = "change-me-in-prod"  # IMPORTANT: override in production
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     COOKIE_SECURE: bool = False # Set to True in production with HTTPS!

@@ -33,7 +33,7 @@ async def get_mentee_requests(
     requests = mentorship_service.get_requests_for_mentee(owned_mentee.id)
     return ResponseEnricher.enrich_requests(requests)
 
-@router.post("/mentee/{mentee_id}/pick_mentor/{mentor_id}", response_model=MentorshipRequestResponse, status_code=201)
+@router.post("/mentees/{mentee_id}/requests/pick_mentor/{mentor_id}", response_model=MentorshipRequestResponse, status_code=201)
 async def pick_mentor(
     mentee_id: int = Path(..., description="The ID of the mentee picking a mentor"),
     mentor_id: int = Path(..., description="The ID of the mentor being picked"),
@@ -48,7 +48,7 @@ async def pick_mentor(
     except BusinessLogicError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.put("/mentor/{mentor_id}/request/{request_id}/accept", response_model=MentorshipRequestResponse)
+@router.put("/mentors/{mentor_id}/requests/{request_id}/accept", response_model=MentorshipRequestResponse)
 async def accept_request(
     request: MentorshipRequest = Depends(get_mentor_request_with_auth),
     mentorship_service: MentorshipService = Depends(get_mentorship_service)
@@ -60,7 +60,7 @@ async def accept_request(
     except BusinessLogicError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.put("/mentor/{mentor_id}/request/{request_id}/reject", response_model=MentorshipRequestResponse)
+@router.put("/mentors/{mentor_id}/requests/{request_id}/reject", response_model=MentorshipRequestResponse)
 async def reject_request(
     request: MentorshipRequest = Depends(get_mentor_request_with_auth),
     mentorship_service: MentorshipService = Depends(get_mentorship_service),
@@ -73,7 +73,7 @@ async def reject_request(
     except BusinessLogicError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.put("/mentor/{mentor_id}/request/{request_id}/complete", response_model=MentorshipRequestResponse)
+@router.put("/mentors/{mentor_id}/requests/{request_id}/complete", response_model=MentorshipRequestResponse)
 async def complete_request(
     request: MentorshipRequest = Depends(get_mentor_request_with_auth),
     mentorship_service: MentorshipService = Depends(get_mentorship_service)
@@ -85,7 +85,7 @@ async def complete_request(
     except BusinessLogicError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.put("/mentee/{mentee_id}/request/{request_id}/cancel", response_model=MentorshipRequestResponse)
+@router.put("/mentees/{mentee_id}/requests/{request_id}/cancel", response_model=MentorshipRequestResponse)
 async def cancel_request(
     request: MentorshipRequest = Depends(get_mentee_request_with_auth),
     mentorship_service: MentorshipService = Depends(get_mentorship_service)
@@ -97,7 +97,7 @@ async def cancel_request(
     except BusinessLogicError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.put("/mentee/{mentee_id}/request/{request_id}/conclude", response_model=MentorshipRequestResponse)
+@router.put("/mentees/{mentee_id}/requests/{request_id}/conclude", response_model=MentorshipRequestResponse)
 async def conclude_request(
     request: MentorshipRequest = Depends(get_mentee_request_with_auth),
     mentorship_service: MentorshipService = Depends(get_mentorship_service)

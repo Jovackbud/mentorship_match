@@ -64,7 +64,6 @@ document.addEventListener('DOMContentLoaded', async() => {
     const menteeRequestsMessage = document.getElementById('mentee-requests-message');
     const menteeProfileMessage = document.getElementById('mentee-profile-message');
 
-
     // --- Global State Variables ---
     let currentMenteeId = null; // Used for mentee signup redirects
     let selectedMentorId = null;
@@ -157,13 +156,78 @@ document.addEventListener('DOMContentLoaded', async() => {
                     }
                 } catch (e) {
                     console.error('Network error running match from nav:', e);
-                    // As a fallback, let them go to signup if something unexpected happened
-                    window.location.href = '/signup/mentee';
+                    // As a fallback, redirect unauthenticated users to login
+                    window.location.href = '/login';
                 }
+            } else {
+                // Not authenticated or no mentee profile → require login first
+                event.preventDefault();
+                window.location.href = '/login';
             }
             // else: not authenticated or no mentee profile → default link to /signup/mentee
         });
     }
+
+    // NEW: Handle "Find Your Mentor" button on home page
+    const findMentorHomeBtn = document.getElementById('find-mentor-home-btn');
+    if (findMentorHomeBtn) {
+        findMentorHomeBtn.addEventListener('click', async (event) => {
+            event.preventDefault();
+            // Same logic as nav link - check if user has mentee profile
+            if (isAuthenticated() && currentUser?.mentee_profile_id) {
+                // Redirect to find new matches
+                try {
+                    const menteeId = currentUser.mentee_profile_id;
+                    const profileResponse = await authorizedFetch(`/api/mentees/${menteeId}`, { method: 'GET' });
+                    if (!profileResponse.ok) {
+                        throw new Error('Failed to fetch mentee profile');
+                    }
+                    const menteeProfileData = await profileResponse.json();
+
+                    const matchResponse = await authorizedFetch(`/api/mentees/${menteeId}/match`, {
+                        method: 'POST',
+                        body: JSON.stringify(menteeProfileData),
+                    });
+                    const result = await matchResponse.json();
+
+                    if (matchResponse.ok) {
+                        sessionStorage.setItem('menteeIdForRecommendations', menteeId.toString());
+                        if (result.recommendations && result.recommendations.length > 0) {
+                            sessionStorage.setItem('initialRecommendations', JSON.stringify(result.recommendations));
+                        } else {
+                            sessionStorage.setItem('initialRecommendations', JSON.stringify([]));
+                            sessionStorage.setItem('recommendationsMessage', result.message || "No suitable mentors found based on your criteria. Please try broadening your preferences.");
+                        }
+                        window.location.href = `/mentees/${menteeId}/recommendations`;
+
+                    } else {
+                        window.location.href = `/dashboard/mentee/${menteeId}`;
+                    }
+                } catch (e) {
+                    console.error('Error from home page find mentor:', e);
+                    window.location.href = '/login';
+                }
+            } else {
+                // Not authenticated or no profile - go to login first
+                window.location.href = '/login';
+            }
+        });
+    }
+
+    // NEW: Handle "Become a Mentor" nav click for unauthenticated users → redirect to login
+    if (navBecomeMentor) {
+        const navBecomeMentorLink = navBecomeMentor.querySelector('a');
+        if (navBecomeMentorLink) {
+            navBecomeMentorLink.addEventListener('click', (event) => {
+                if (!isAuthenticated()) {
+                    event.preventDefault();
+                    window.location.href = '/login';
+                }
+            });
+        }
+    }
+
+    
 
     async function checkSessionAndFetchUser() {
         try {
@@ -276,7 +340,6 @@ document.addEventListener('DOMContentLoaded', async() => {
     window.togglePickMentorModal = (event) => toggleDialog(pickMentorModal, event);
     window.toggleRejectModal = (event) => toggleDialog(rejectModal, event);
 
-
     // --- Centralized API Call Helper ---
 
     async function authorizedFetch(url, options = {}) {
@@ -297,7 +360,6 @@ document.addEventListener('DOMContentLoaded', async() => {
         }
         return response;
     }
-
 
     // --- Register Form Logic ---
     if (registerForm) {
@@ -430,26 +492,10 @@ document.addEventListener('DOMContentLoaded', async() => {
             }
             data.preferences = (preferences.industries || preferences.languages) ? preferences : null;
 
-            const demographics = {};
-            const gender = formData.get('demographics_gender');
-            if (gender && gender.trim() !== '') {
-                demographics.gender = gender;
-            }
-            const ethnicity = formData.get('demographics_ethnicity');
-            if (ethnicity && ethnicity.trim() !== '') {
-                demographics.ethnicity = ethnicity;
-            }
-            const yearsExperience = parseInt(formData.get('demographics_years_experience'), 10);
-            if (!isNaN(yearsExperience) && yearsExperience >= 0) {
-                demographics.years_experience = yearsExperience;
-            }
-
-            data.demographics = (Object.keys(demographics).length > 0) ? demographics : null;
-
             console.log('Sending mentor data:', data);
 
             try {
-                const response = await authorizedFetch('/mentors/', {
+                const response = await authorizedFetch('/api/mentors/', {
                     method: 'POST',
                     body: JSON.stringify(data),
                 });
@@ -839,13 +885,13 @@ document.addEventListener('DOMContentLoaded', async() => {
         let footerButtons = '';
         if (request.status === 'PENDING') {
             footerButtons = `
-                <button type="button" class="request-action-btn" data-action="accept" data-request-id="${request.id}" data-mentor-id="${currentMentorDashboardId}">Accept</button>
-                <button type="button" class="request-action-btn secondary" data-action="reject" data-request-id="${request.id}" data-mentor-id="${currentMentorDashboardId}">Reject</button>
+                <button type="button" class="request-action-btn" data-action="accept" data-request-id="${request.id}" data-mentor-id="${currentMentorDashboardId}" data-mentee-id="${request.mentee_id}">Accept</button>
+                <button type="button" class="request-action-btn secondary" data-action="reject" data-request-id="${request.id}" data-mentor-id="${currentMentorDashboardId}" data-mentee-id="${request.mentee_id}">Reject</button>
             `;
         } else if (request.status === 'ACCEPTED') {
             footerButtons = `
-                <button type="button" class="request-action-btn" data-action="complete" data-request-id="${request.id}" data-mentor-id="${currentMentorDashboardId}">Complete Mentorship</button>
-                <button type="button" class="request-action-btn secondary" data-action="reject" data-request-id="${request.id}" data-mentor-id="${currentMentorDashboardId}">End Mentorship (Reject)</button>
+                <button type="button" class="request-action-btn" data-action="complete" data-request-id="${request.id}" data-mentor-id="${currentMentorDashboardId}" data-mentee-id="${request.mentee_id}">Complete Mentorship</button>
+                <button type="button" class="request-action-btn secondary" data-action="reject" data-request-id="${request.id}" data-mentor-id="${currentMentorDashboardId}" data-mentee-id="${request.mentee_id}">End Mentorship (Reject)</button>
             `;
         }
 
@@ -865,12 +911,14 @@ document.addEventListener('DOMContentLoaded', async() => {
                 const action = event.currentTarget.dataset.action;
                 const requestId = parseInt(event.currentTarget.dataset.requestId, 10);
                 const mentorId = parseInt(event.currentTarget.dataset.mentorId, 10);
+                const menteeId = parseInt(event.currentTarget.dataset.menteeId || '0', 10) || null;
 
                 if (action === 'reject') {
                     currentRequestIdForAction = requestId;
                     toggleRejectModal();
                 } else {
                     await performMentorAction(mentorId, requestId, action);
+                    // Feedback modal triggered inside performMentorAction on success using response payload
                 }
             });
         });
@@ -889,14 +937,14 @@ document.addEventListener('DOMContentLoaded', async() => {
         let queryParams = '';
 
         if (action === 'accept') {
-            endpoint = `/api/mentor/${mentorId}/request/${requestId}/accept`; // Corrected API path
+            endpoint = `/api/mentors/${mentorId}/requests/${requestId}/accept`; 
         } else if (action === 'reject') {
-            endpoint = `/api/mentor/${mentorId}/request/${requestId}/reject`; // Corrected API path
+            endpoint = `/api/mentors/${mentorId}/requests/${requestId}/reject`; 
             if (rejectionReason) {
                 queryParams = `?rejection_reason=${encodeURIComponent(rejectionReason)}`;
             }
         } else if (action === 'complete') {
-            endpoint = `/api/mentor/${mentorId}/request/${requestId}/complete`; // Corrected API path
+            endpoint = `/api/mentors/${mentorId}/requests/${requestId}/complete`; 
         } else {
             showFormMessage(requestsMessage, `Unknown action: ${action}`, 'error');
             return;
@@ -912,6 +960,10 @@ document.addEventListener('DOMContentLoaded', async() => {
                 showFormMessage(requestsMessage, `Request ${requestId} ${action.toUpperCase()}ED successfully!`, 'success');
                 fetchMentorshipRequests(mentorId);
                 fetchMentorDetails(mentorId);
+                // After successful action, prompt optional feedback (mentor flow)
+                if (result && result.id) {
+                    openFeedbackModal({ requestId: result.id });
+                }
             } else {
                 showFormMessage(requestsMessage, `Error performing ${action} for request ${requestId}: ${result.detail || 'Unknown error.'}`, 'error');
                 console.error(`API Error for ${action} request ${requestId}:`, result);
@@ -931,7 +983,6 @@ document.addEventListener('DOMContentLoaded', async() => {
             if (rejectionReasonInput) rejectionReasonInput.value = '';
         });
     }
-
 
     // --- Mentee Dashboard Logic ---
     const menteePathSegments = window.location.pathname.split('/');
@@ -1085,11 +1136,11 @@ document.addEventListener('DOMContentLoaded', async() => {
         let footerButtons = '';
         if (request.status === 'PENDING') {
             footerButtons = `
-                <button type="button" class="mentee-request-action-btn secondary" data-action="cancel" data-request-id="${request.id}" data-mentee-id="${currentMenteeDashboardId}">Cancel Request</button>
+                <button type="button" class="mentee-request-action-btn secondary" data-action="cancel" data-request-id="${request.id}" data-mentee-id="${currentMenteeDashboardId}" data-mentor-id="${request.mentor_id}">Cancel Request</button>
             `;
         } else if (request.status === 'ACCEPTED') {
             footerButtons = `
-                <button type="button" class="mentee-request-action-btn" data-action="conclude" data-request-id="${request.id}" data-mentee-id="${currentMenteeDashboardId}">Conclude Mentorship</button>
+                <button type="button" class="mentee-request-action-btn" data-action="conclude" data-request-id="${request.id}" data-mentee-id="${currentMenteeDashboardId}" data-mentor-id="${request.mentor_id}">Conclude Mentorship</button>
             `;
         }
 
@@ -1109,8 +1160,10 @@ document.addEventListener('DOMContentLoaded', async() => {
                 const action = event.currentTarget.dataset.action;
                 const requestId = parseInt(event.currentTarget.dataset.requestId, 10);
                 const menteeId = parseInt(event.currentTarget.dataset.menteeId, 10);
+                const mentorId = parseInt(event.currentTarget.dataset.mentorId || '0', 10) || null;
 
                 await performMenteeAction(menteeId, requestId, action);
+                // Feedback modal triggered inside performMenteeAction on success using response payload
             });
         });
     }
@@ -1126,9 +1179,9 @@ document.addEventListener('DOMContentLoaded', async() => {
         let method = 'PUT';
 
         if (action === 'cancel') {
-            endpoint = `/api/mentee/${menteeId}/request/${requestId}/cancel`; // Corrected API path
+            endpoint = `/api/mentees/${menteeId}/requests/${requestId}/cancel`; 
         } else if (action === 'conclude') {
-            endpoint = `/api/mentee/${menteeId}/request/${requestId}/conclude`; // Corrected API path
+            endpoint = `/api/mentees/${menteeId}/requests/${requestId}/conclude`; 
         } else {
             showFormMessage(menteeRequestsMessage, `Unknown mentee action: ${action}`, 'error');
             return;
@@ -1144,6 +1197,10 @@ document.addEventListener('DOMContentLoaded', async() => {
                 showFormMessage(menteeRequestsMessage, `Request ${requestId} ${action.toUpperCase()}ED successfully!`, 'success');
                 fetchMenteeMentorshipRequests(menteeId);
                 fetchMenteeDetails(menteeId);
+                // After successful action, prompt optional feedback (mentee flow)
+                if (result && result.id) {
+                    openFeedbackModal({ requestId: result.id });
+                }
             } else {
                 showFormMessage(menteeRequestsMessage, `Error performing ${action} for request ${requestId}: ${result.detail || 'Unknown error.'}`, 'error');
                 console.error(`API Error for ${action} request ${requestId}:`, result);
@@ -1154,83 +1211,109 @@ document.addEventListener('DOMContentLoaded', async() => {
         }
     }
 
-    // --- Feedback Form Logic ---
-    if (feedbackForm) {
-        hideFormMessage(feedbackResponseMessage);
-        if (ratingFeedback) hideFormMessage(ratingFeedback);
+    // --- Post-Action Feedback Modal Wiring (optional) ---
+    const feedbackModal = document.getElementById('feedback-modal');
+    const feedbackSubmitBtn = document.getElementById('feedback-submit-btn');
+    const feedbackSkipBtn = document.getElementById('feedback-skip-btn');
+    const feedbackInlineStatus = document.getElementById('feedback-inline-status');
+    let lastFeedbackContext = null; // { requestId }
 
-        feedbackForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            hideFormMessage(feedbackResponseMessage);
-            if (ratingFeedback) hideFormMessage(ratingFeedback);
-
-            if (!isAuthenticated()) {
-                showFormMessage(feedbackResponseMessage, 'You must be logged in to submit feedback. Please <a href="/login">Login</a> or <a href="/register">Register</a>.', 'error');
-                return;
-            }
-
-            const formData = new FormData(feedbackForm);
-            const mentee_id = parseInt(formData.get('mentee_id'), 10);
-            const mentor_id = parseInt(formData.get('mentor_id'), 10);
-            const rating = parseInt(formData.get('rating'), 10);
-            const comment = formData.get('comment') || null;
-
-            if (isNaN(mentee_id) || mentee_id <= 0) {
-                showFormMessage(feedbackResponseMessage, 'Please enter a valid Mentee ID.', 'error');
-                return;
-            }
-            if (isNaN(mentor_id) || mentor_id <= 0) {
-                showFormMessage(feedbackResponseMessage, 'Please enter a valid Mentor ID.', 'error');
-                return;
-            }
-            if (isNaN(rating) || rating < 1 || rating > 5) {
-                if (ratingFeedback) showFormMessage(ratingFeedback, 'Please select a rating between 1 and 5 stars.', 'error');
-                else showFormMessage(feedbackResponseMessage, 'Please select a rating between 1 and 5 stars.', 'error');
-                return;
-            }
-
-            const feedbackData = {
-                mentee_id,
-                mentor_id,
-                rating,
-                comment,
-            };
-
-            console.log('Sending feedback data:', feedbackData);
-
-            try {
-                const response = await authorizedFetch(`/api/mentees/${mentee_id}/feedback`, { // Corrected endpoint for feedback submission
-                    method: 'POST',
-                    body: JSON.stringify(feedbackData),
-                });
-
-                const result = await response.json();
-
-                if (response.ok) {
-                    showFormMessage(feedbackResponseMessage, 'Thank you! Your feedback has been submitted successfully.', 'success');
-                    feedbackForm.reset();
-                } else {
-                    showFormMessage(feedbackResponseMessage, `Error submitting feedback: ${result.detail || 'Unknown error.'}`, 'error');
-                    console.error('API Error:', result);
-                }
-            } catch (error) {
-                showFormMessage(feedbackResponseMessage, 'Network error or unable to connect to server.', 'error');
-                console.error('Fetch error:', error);
-            }
-        });
+    function openFeedbackModal(ctx) {
+        lastFeedbackContext = ctx;
+        if (feedbackModal) {
+            feedbackModal.setAttribute('open', '');
+        }
+        // Clear any previous inline status
+        if (feedbackInlineStatus) {
+            feedbackInlineStatus.textContent = '';
+            feedbackInlineStatus.hidden = true;
+        }
+        // Also clear any previous selections/comments
+        document.querySelectorAll('input[name="feedback-rating"]').forEach(el => el.checked = false);
+        const commentEl = document.getElementById('feedback-comment');
+        if (commentEl) commentEl.value = '';
     }
 
-    // --- Mentor Edit Page Logic ---
+    function closeFeedbackModal() {
+        if (feedbackModal) {
+            feedbackModal.removeAttribute('open');
+            // Clear selections
+            document.querySelectorAll('input[name="feedback-rating"]').forEach(el => el.checked = false);
+            const commentEl = document.getElementById('feedback-comment');
+            if (commentEl) commentEl.value = '';
+            if (feedbackInlineStatus) {
+                feedbackInlineStatus.textContent = '';
+                feedbackInlineStatus.hidden = true;
+            }
+        }
+        lastFeedbackContext = null;
+    }
+
+    async function submitFeedbackIfProvided() {
+        if (!lastFeedbackContext) return;
+        const ratingEl = document.querySelector('input[name="feedback-rating"]:checked');
+        const commentEl = document.getElementById('feedback-comment');
+        const rating = ratingEl ? parseInt(ratingEl.value, 10) : null;
+        const comment = commentEl && commentEl.value.trim() !== '' ? commentEl.value.trim() : null;
+
+        if (!rating && !comment) {
+            // Nothing provided → treat as skip
+            closeFeedbackModal();
+            return;
+        }
+
+        const { requestId } = lastFeedbackContext;
+        const payload = {};
+        if (rating) payload.rating = rating;
+        if (comment) payload.comment = comment;
+
+        // Helper to show inline status and auto-close the modal shortly after
+        const showInlineAndClose = (message, variant = 'success', delay = 1200) => {
+            if (feedbackInlineStatus) {
+                feedbackInlineStatus.textContent = message;
+                feedbackInlineStatus.style.color = (variant === 'success') ? 'var(--pico-ins-color, #1f7a1f)' : 'var(--pico-del-color, #a86a00)';
+                feedbackInlineStatus.hidden = false;
+            }
+            setTimeout(() => closeFeedbackModal(), delay);
+        };
+
+        try {
+            const res = await authorizedFetch(`/api/requests/${requestId}/feedback`, {
+                method: 'POST',
+                body: JSON.stringify(payload),
+            });
+            await res.text().catch(() => {});
+            if (res.ok) {
+                showInlineAndClose('Thanks! Your feedback was submitted.', 'success', 1100);
+            } else {
+                showInlineAndClose("We couldn't submit your feedback. Your action is already saved.", 'warning', 1400);
+            }
+        } catch (e) {
+            console.warn('Feedback submission failed (non-blocking):', e);
+            showInlineAndClose("We couldn't submit your feedback. Your action is already saved.", 'warning', 1400);
+        }
+    }
+
+    if (feedbackSubmitBtn) {
+        feedbackSubmitBtn.addEventListener('click', submitFeedbackIfProvided);
+    }
+    if (feedbackSkipBtn) {
+        feedbackSkipBtn.addEventListener('click', closeFeedbackModal);
+    }
+
+    // --- Edit Profile Pages Logic (Mentor & Mentee) ---
+    // Mentor Edit Page Logic
     const mentorEditForm = document.getElementById('mentor-edit-form');
     const mentorEditMessage = document.getElementById('mentor-edit-message');
     const mentorDeleteBtn = document.getElementById('mentor-delete-btn');
 
     if (mentorEditForm) {
         hideFormMessage(mentorEditMessage);
-        // Ensure session known
         await checkSessionAndFetchUser();
-        if (!isAuthenticated() || !currentUser?.mentor_profile_id) {
+        if (!isAuthenticated()) {
             window.location.href = '/login';
+        } else if (!currentUser?.mentor_profile_id) {
+            window.location.href = '/get-started';
         } else {
             const mentorId = currentUser.mentor_profile_id;
             // Prefill
@@ -1274,13 +1357,14 @@ document.addEventListener('DOMContentLoaded', async() => {
                 };
 
                 try {
-                    const res = await authorizedFetch(`/mentors/${mentorId}`, {
+                    const res = await authorizedFetch(`/api/mentors/${mentorId}`, {
                         method: 'PUT',
                         body: JSON.stringify(data)
                     });
                     const result = await res.json();
                     if (res.ok) {
                         showFormMessage(mentorEditMessage, 'Profile updated. Redirecting to dashboard...', 'success');
+                        mentorEditForm.reset();
                         window.location.href = `/dashboard/mentor/${mentorId}`;
                     } else {
                         showFormMessage(mentorEditMessage, `Update failed: ${result.detail || 'Unknown error.'}`, 'error');
@@ -1294,7 +1378,7 @@ document.addEventListener('DOMContentLoaded', async() => {
                 mentorDeleteBtn.addEventListener('click', async () => {
                     if (!confirm('Are you sure you want to delete your mentor profile? This cannot be undone.')) return;
                     try {
-                        const res = await authorizedFetch(`/mentors/${mentorId}`, { method: 'DELETE' });
+                        const res = await authorizedFetch(`/api/mentors/${mentorId}`, { method: 'DELETE' });
                         if (res.status === 204) {
                             showFormMessage(mentorEditMessage, 'Profile deleted.', 'success');
                             window.location.href = '/get-started';
@@ -1310,7 +1394,7 @@ document.addEventListener('DOMContentLoaded', async() => {
         }
     }
 
-    // --- Mentee Edit Page Logic ---
+    // Mentee Edit Page Logic
     const menteeEditForm = document.getElementById('mentee-edit-form');
     const menteeEditMessage = document.getElementById('mentee-edit-message');
     const menteeDeleteBtn = document.getElementById('mentee-delete-btn');
@@ -1318,8 +1402,10 @@ document.addEventListener('DOMContentLoaded', async() => {
     if (menteeEditForm) {
         hideFormMessage(menteeEditMessage);
         await checkSessionAndFetchUser();
-        if (!isAuthenticated() || !currentUser?.mentee_profile_id) {
+        if (!isAuthenticated()) {
             window.location.href = '/login';
+        } else if (!currentUser?.mentee_profile_id) {
+            window.location.href = '/get-started';
         } else {
             const menteeId = currentUser.mentee_profile_id;
             // Prefill
@@ -1363,7 +1449,7 @@ document.addEventListener('DOMContentLoaded', async() => {
                 };
 
                 try {
-                    const res = await authorizedFetch(`/mentees/${menteeId}`, {
+                    const res = await authorizedFetch(`/api/mentees/${menteeId}`, {
                         method: 'PUT',
                         body: JSON.stringify(data)
                     });
@@ -1383,7 +1469,7 @@ document.addEventListener('DOMContentLoaded', async() => {
                 menteeDeleteBtn.addEventListener('click', async () => {
                     if (!confirm('Are you sure you want to delete your mentee profile? This cannot be undone.')) return;
                     try {
-                        const res = await authorizedFetch(`/mentees/${menteeId}`, { method: 'DELETE' });
+                        const res = await authorizedFetch(`/api/mentees/${menteeId}`, { method: 'DELETE' });
                         if (res.status === 204) {
                             showFormMessage(menteeEditMessage, 'Profile deleted.', 'success');
                             window.location.href = '/get-started';
@@ -1398,8 +1484,6 @@ document.addEventListener('DOMContentLoaded', async() => {
             }
         }
     }
-
-
 
     // --- Initial setup on page load ---
     checkSessionAndFetchUser();
