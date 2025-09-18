@@ -10,7 +10,7 @@ from ..models import User, Mentor, Mentee
 from ..security import get_current_user
 from ..exceptions import BusinessLogicError
 
-router = APIRouter(tags=["profiles"])
+router = APIRouter(prefix="/api", tags=["profiles"])
 
 @router.post("/mentors/", response_model=MentorResponse, status_code=201)
 async def create_mentor(

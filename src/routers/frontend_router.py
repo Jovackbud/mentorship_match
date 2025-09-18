@@ -40,6 +40,9 @@ async def mentee_signup_page(request: Request):
 
 @router.get("/dashboard/mentor/{mentor_id}", response_class=HTMLResponse)
 async def mentor_dashboard_page(request: Request, mentor_id: int, db: Session = Depends(get_db)):
+    # Redirect unauthenticated users to login
+    if not request.cookies.get("access_token"):
+        return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
     mentor = db.query(Mentor).filter(Mentor.id == mentor_id).first()
     if not mentor:
         raise HTTPException(status_code=404, detail="Mentor not found")
@@ -51,6 +54,9 @@ async def mentor_dashboard_page(request: Request, mentor_id: int, db: Session = 
 
 @router.get("/dashboard/mentee/{mentee_id}", response_class=HTMLResponse)
 async def mentee_dashboard_page(request: Request, mentee_id: int, db: Session = Depends(get_db)):
+    # Redirect unauthenticated users to login
+    if not request.cookies.get("access_token"):
+        return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
     mentee = db.query(Mentee).filter(Mentee.id == mentee_id).first()
     if not mentee:
         raise HTTPException(status_code=404, detail="Mentee not found")
@@ -62,6 +68,9 @@ async def mentee_dashboard_page(request: Request, mentee_id: int, db: Session = 
 
 @router.get("/mentees/{mentee_id}/recommendations", response_class=HTMLResponse)
 async def mentee_recommendations_page(request: Request, mentee_id: int, db: Session = Depends(get_db)):
+    # Redirect unauthenticated users to login
+    if not request.cookies.get("access_token"):
+        return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
     mentee = db.query(Mentee).filter(Mentee.id == mentee_id).first()
     if not mentee:
         raise HTTPException(status_code=404, detail="Mentee not found")

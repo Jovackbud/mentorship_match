@@ -871,7 +871,7 @@ document.addEventListener('DOMContentLoaded', async() => {
         const statusClass = request.status.toLowerCase();
 
         let cardContent = `
-            <h5>Request ID: ${request.id}</h5>
+            <h5>Mentorship Request</h5>
             <p><strong>Mentee:</strong> <a href="/dashboard/mentee/${request.mentee_id}" class="secondary">${request.mentee_name || request.mentee_id}</a></p>
             <p><strong>Status:</strong> <mark class="${statusClass}">${request.status}</mark></p>
             <p><strong>Requested:</strong> ${new Date(request.request_date).toLocaleDateString()}</p>
@@ -956,8 +956,8 @@ document.addEventListener('DOMContentLoaded', async() => {
                 showFormMessage(requestsMessage, `Request ${requestId} ${action.toUpperCase()}ED successfully!`, 'success');
                 fetchMentorshipRequests(mentorId);
                 fetchMentorDetails(mentorId);
-                // After successful action, prompt optional feedback (mentor flow)
-                if (result && result.id) {
+                // Feedback should NOT be asked on accept/reject. Only on complete.
+                if (action === 'complete' && result && result.id) {
                     openFeedbackModal({ requestId: result.id });
                 }
             } else {
@@ -1122,7 +1122,7 @@ document.addEventListener('DOMContentLoaded', async() => {
         const statusClass = request.status.toLowerCase();
 
         let cardContent = `
-            <h5>Request ID: ${request.id}</h5>
+            <h5>Mentorship Request</h5>
             <p><strong>Mentor:</strong> <a href="/dashboard/mentor/${request.mentor_id}" class="secondary">${request.mentor_name || request.mentor_id}</a></p>
             <p><strong>Status:</strong> <mark class="${statusClass}">${request.status}</mark></p>
             <p><strong>Requested:</strong> ${new Date(request.request_date).toLocaleDateString()}</p>
@@ -1193,8 +1193,8 @@ document.addEventListener('DOMContentLoaded', async() => {
                 showFormMessage(menteeRequestsMessage, `Request ${requestId} ${action.toUpperCase()}ED successfully!`, 'success');
                 fetchMenteeMentorshipRequests(menteeId);
                 fetchMenteeDetails(menteeId);
-                // After successful action, prompt optional feedback (mentee flow)
-                if (result && result.id) {
+                // Feedback should NOT be asked on cancel. Only on conclude.
+                if (action === 'conclude' && result && result.id) {
                     openFeedbackModal({ requestId: result.id });
                 }
             } else {
@@ -1336,18 +1336,30 @@ document.addEventListener('DOMContentLoaded', async() => {
                 hideFormMessage(mentorEditMessage);
 
                 const data = {
-                    name: document.getElementById('mentor_name').value,
-                    bio: document.getElementById('mentor_bio').value,
-                    expertise: document.getElementById('mentor_expertise').value || null,
-                    capacity: parseInt(document.getElementById('mentor_capacity').value, 10),
+                    name: document.getElementById('mentor_name').value?.trim() || null,
+                    bio: document.getElementById('mentor_bio').value?.trim() || null,
+                    expertise: document.getElementById('mentor_expertise').value?.trim() || null,
+                    capacity: (() => {
+                        const raw = document.getElementById('mentor_capacity').value;
+                        if (raw === '' || raw == null) return null;
+                        const n = parseInt(raw, 10);
+                        return Number.isNaN(n) ? null : n;
+                    })(),
                     availability: (document.getElementById('mentor_hours_per_month').value !== '')
                         ? { hours_per_month: parseInt(document.getElementById('mentor_hours_per_month').value, 10) } : null,
                     preferences: (() => {
                         const industries = document.getElementById('mentor_preferences_industries').value.trim();
                         const languages = document.getElementById('mentor_preferences_languages').value.trim();
                         const pref = {};
-                        if (industries) pref.industries = industries.split(',').map(s => s.trim()).filter(Boolean);
-                        if (languages) pref.languages = languages.split(',').map(s => s.trim()).filter(Boolean);
+                        if (industries) {
+                            const arr = industries.split(',').map(s => s.trim()).filter(Boolean);
+                            if (arr.length) pref.industries = arr;
+                        }
+                        if (languages) {
+                            const arr = languages.split(',').map(s => s.trim()).filter(Boolean);
+                            if (arr.length) pref.languages = arr;
+                        }
+                        // Only include preferences if at least one non-empty array present
                         return (pref.industries || pref.languages) ? pref : null;
                     })()
                 };
@@ -1357,13 +1369,23 @@ document.addEventListener('DOMContentLoaded', async() => {
                         method: 'PUT',
                         body: JSON.stringify(data)
                     });
-                    const result = await res.json();
+                    const result = await res.json().catch(() => ({}));
+
                     if (res.ok) {
                         showFormMessage(mentorEditMessage, 'Profile updated. Redirecting to dashboard...', 'success');
                         mentorEditForm.reset();
                         window.location.href = `/dashboard/mentor/${mentorId}`;
                     } else {
-                        showFormMessage(mentorEditMessage, `Update failed: ${result.detail || 'Unknown error.'}`, 'error');
+                        // Improve error feedback when Pydantic returns structured validation errors
+                        let msg = 'Unknown error.';
+                        if (Array.isArray(result?.detail)) {
+                            msg = result.detail.map(e => `${(e.loc || []).join('.')}: ${e.msg}`).join(' | ');
+                        } else if (typeof result?.detail === 'string') {
+                            msg = result.detail;
+                        } else if (result && Object.keys(result).length) {
+                            msg = JSON.stringify(result);
+                        }
+                        showFormMessage(mentorEditMessage, `Update failed: ${msg}`, 'error');
                     }
                 } catch (e) {
                     showFormMessage(mentorEditMessage, `Network error updating profile: ${e.message}`, 'error');
@@ -1428,18 +1450,25 @@ document.addEventListener('DOMContentLoaded', async() => {
                 hideFormMessage(menteeEditMessage);
 
                 const data = {
-                    name: document.getElementById('mentee_name').value,
-                    bio: document.getElementById('mentee_bio').value,
-                    goals: document.getElementById('mentee_goals').value || null,
-                    mentorship_style: document.getElementById('mentee_style').value || null,
+                    name: document.getElementById('mentee_name').value?.trim() || null,
+                    bio: document.getElementById('mentee_bio').value?.trim() || null,
+                    goals: document.getElementById('mentee_goals').value?.trim() || null,
+                    mentorship_style: document.getElementById('mentee_style').value?.trim() || null,
                     availability: (document.getElementById('mentee_hours_per_month').value !== '')
                         ? { hours_per_month: parseInt(document.getElementById('mentee_hours_per_month').value, 10) } : null,
                     preferences: (() => {
                         const industries = document.getElementById('mentee_preferences_industries').value.trim();
                         const languages = document.getElementById('mentee_preferences_languages').value.trim();
                         const pref = {};
-                        if (industries) pref.industries = industries.split(',').map(s => s.trim()).filter(Boolean);
-                        if (languages) pref.languages = languages.split(',').map(s => s.trim()).filter(Boolean);
+                        if (industries) {
+                            const arr = industries.split(',').map(s => s.trim()).filter(Boolean);
+                            if (arr.length) pref.industries = arr;
+                        }
+                        if (languages) {
+                            const arr = languages.split(',').map(s => s.trim()).filter(Boolean);
+                            if (arr.length) pref.languages = arr;
+                        }
+                        // Only include preferences if at least one non-empty array present
                         return (pref.industries || pref.languages) ? pref : null;
                     })()
                 };
@@ -1450,6 +1479,7 @@ document.addEventListener('DOMContentLoaded', async() => {
                         body: JSON.stringify(data)
                     });
                     const result = await res.json();
+
                     if (res.ok) {
                         showFormMessage(menteeEditMessage, 'Profile updated. Redirecting to dashboard...', 'success');
                         window.location.href = `/dashboard/mentee/${menteeId}`;
@@ -1497,8 +1527,6 @@ document.addEventListener('DOMContentLoaded', async() => {
                         if (!Number.isNaN(parsed)) menteeId = parsed;
                     }
                 }
-                if (!menteeId) menteeId = currentMenteeDashboardId || null;
-
                 if (!menteeId || !selectedMentorId) {
                     console.warn('Missing menteeId or selectedMentorId when confirming pick:', { menteeId, selectedMentorId });
                     // Best-effort inline message on recommendations page; fallback to alert
@@ -1520,9 +1548,7 @@ document.addEventListener('DOMContentLoaded', async() => {
                 if (res.ok) {
                     // Close modal and optionally trigger feedback prompt
                     togglePickMentorModal();
-                    if (result && result.id) {
-                        openFeedbackModal({ requestId: result.id });
-                    }
+                    // Feedback should NOT be asked on send request. Only on complete/conclude.
                     // If we are on dashboard, refresh requests; on recs page, show a friendly note
                     if (typeof fetchMenteeMentorshipRequests === 'function' && menteeId === currentMenteeDashboardId) {
                         fetchMenteeMentorshipRequests(menteeId);
@@ -1550,5 +1576,78 @@ document.addEventListener('DOMContentLoaded', async() => {
                 }
             }
         });
+    }
+
+    // Ensure an Edit Profile button exists on mentor dashboard
+    const actionsContainer = document.getElementById('mentor-dashboard-actions');
+    const target = actionsContainer || mentorDashboardName?.parentElement || document.body;
+    if (!document.getElementById('mentor-edit-profile-btn')) {
+        const btn = document.createElement('a');
+        btn.id = 'mentor-edit-profile-btn';
+        btn.href = '/profile/mentor/edit';
+        btn.className = 'contrast outline';
+        btn.style = 'margin-left: .5rem;';
+        btn.textContent = 'Edit Profile';
+        target.appendChild(btn);
+    }
+
+    // Ensure Edit Profile and Find Mentors buttons exist on mentee dashboard
+    const menteeActionsContainer = document.getElementById('mentee-dashboard-actions');
+    const menteeTarget = menteeActionsContainer || menteeDashboardName?.parentElement || document.body;
+    if (!document.getElementById('mentee-edit-profile-btn')) {
+        const editBtn = document.createElement('a');
+        editBtn.id = 'mentee-edit-profile-btn';
+        editBtn.href = '/profile/mentee/edit';
+        editBtn.className = 'contrast outline';
+        editBtn.style = 'margin-left: .5rem;';
+        editBtn.textContent = 'Edit Profile';
+        menteeTarget.appendChild(editBtn);
+    }
+    if (!document.getElementById('mentee-find-mentors-btn')) {
+        const findBtn = document.createElement('button');
+        findBtn.id = 'mentee-find-mentors-btn';
+        findBtn.className = '';
+        findBtn.style = 'margin-left: .5rem;';
+        findBtn.textContent = 'Find Mentors';
+        findBtn.addEventListener('click', async () => {
+            try {
+                // Determine menteeId from known dashboard context or URL
+                let menteeId = currentMenteeDashboardId || null;
+                if (!menteeId) {
+                    const parts = window.location.pathname.split('/');
+                    const idx = parts.indexOf('dashboard') + 1;
+                    if (parts[idx] === 'mentee' && parts[idx + 1]) {
+                        const parsed = parseInt(parts[idx + 1], 10);
+                        if (!Number.isNaN(parsed)) menteeId = parsed;
+                    }
+                }
+                if (!menteeId) {
+                    console.warn('Unable to resolve menteeId for re-match from dashboard.');
+                    return;
+                }
+
+                // Trigger a fresh match for this mentee
+                const res = await authorizedFetch(`/api/mentees/${menteeId}/match`, { method: 'POST' });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok) {
+                    // Persist recommendations and navigate to recommendations page
+                    sessionStorage.setItem('menteeIdForRecommendations', String(menteeId));
+                    const recs = Array.isArray(data.recommendations) ? data.recommendations : [];
+                    sessionStorage.setItem('initialRecommendations', JSON.stringify(recs));
+                    if (!recs.length) {
+                        sessionStorage.setItem('recommendationsMessage', data.message || 'No suitable mentors found based on your criteria. Please try broadening your preferences.');
+                    } else {
+                        sessionStorage.removeItem('recommendationsMessage');
+                    }
+                    window.location.href = `/mentees/${menteeId}/recommendations`;
+
+                } else {
+                    console.error('Re-match failed:', data);
+                }
+            } catch (e) {
+                console.error('Network error during re-match:', e);
+            }
+        });
+        menteeTarget.appendChild(findBtn);
     }
 });
