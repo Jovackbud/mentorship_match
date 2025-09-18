@@ -1,6 +1,6 @@
 # src/routers/frontend_router.py
-from fastapi import APIRouter, Request, HTTPException, status, Depends, RedirectResponse
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Request, HTTPException, status, Depends
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from ..database import get_db

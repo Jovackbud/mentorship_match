@@ -143,7 +143,6 @@ document.addEventListener('DOMContentLoaded', async() => {
                         sessionStorage.setItem('menteeIdForRecommendations', menteeId.toString());
                         if (result.recommendations && result.recommendations.length > 0) {
                             sessionStorage.setItem('initialRecommendations', JSON.stringify(result.recommendations));
-                            sessionStorage.removeItem('recommendationsMessage');
                         } else {
                             sessionStorage.setItem('initialRecommendations', JSON.stringify([]));
                             sessionStorage.setItem('recommendationsMessage', result.message || 'No suitable mentors found based on your criteria. Please try broadening your preferences.');
@@ -279,26 +278,20 @@ document.addEventListener('DOMContentLoaded', async() => {
                 console.log('Logged out successfully from backend and client.');
                 updateNavLinks();
                 // Clear any stored recommendations on logout
-                sessionStorage.removeItem('initialRecommendations');
-                sessionStorage.removeItem('menteeIdForRecommendations');
-                sessionStorage.removeItem('recommendationsMessage');
+                clearRecommendationsSession();
                 window.location.href = '/login';
             } else {
                 console.error('Logout failed on backend:', await response.text());
                 currentUser = null;
                 updateNavLinks();
-                sessionStorage.removeItem('initialRecommendations');
-                sessionStorage.removeItem('menteeIdForRecommendations');
-                sessionStorage.removeItem('recommendationsMessage');
+                clearRecommendationsSession();
                 window.location.href = '/login';
             }
         } catch (error) {
             console.error('Network error during logout:', error);
             currentUser = null;
             updateNavLinks();
-            sessionStorage.removeItem('initialRecommendations');
-            sessionStorage.removeItem('menteeIdForRecommendations');
-            sessionStorage.removeItem('recommendationsMessage');
+            clearRecommendationsSession();
             window.location.href = '/login';
         }
     }
@@ -322,6 +315,15 @@ document.addEventListener('DOMContentLoaded', async() => {
             messageElement.removeAttribute('data-variant');
             messageElement.hidden = true;
         }
+    }
+
+    // Centralized session cleanup for recommendations-related data
+    function clearRecommendationsSession() {
+        try {
+            sessionStorage.removeItem('initialRecommendations');
+            sessionStorage.removeItem('menteeIdForRecommendations');
+            sessionStorage.removeItem('recommendationsMessage');
+        } catch (_) {}
     }
 
     // --- Modal Toggle Helpers ---
@@ -704,9 +706,7 @@ document.addEventListener('DOMContentLoaded', async() => {
             if (proceedToDashboardBtn) {
                 proceedToDashboardBtn.addEventListener('click', () => {
                     // Clear recommendation data when proceeding
-                    sessionStorage.removeItem('initialRecommendations');
-                    sessionStorage.removeItem('menteeIdForRecommendations');
-                    sessionStorage.removeItem('recommendationsMessage');
+                    clearRecommendationsSession();
                     window.location.href = `/dashboard/mentee/${menteeIdFromPath}`;
                 });
             }
@@ -717,9 +717,7 @@ document.addEventListener('DOMContentLoaded', async() => {
             }
             if (proceedToDashboardBtn) {
                  proceedToDashboardBtn.addEventListener('click', () => {
-                    sessionStorage.removeItem('initialRecommendations');
-                    sessionStorage.removeItem('menteeIdForRecommendations');
-                    sessionStorage.removeItem('recommendationsMessage');
+                    clearRecommendationsSession();
                     window.location.href = `/dashboard/mentee/${menteeIdFromPath}`;
                 });
             }
@@ -727,9 +725,7 @@ document.addEventListener('DOMContentLoaded', async() => {
         }
         // Also clear on page unload to avoid stale data lingering across sessions
         window.addEventListener('beforeunload', () => {
-            sessionStorage.removeItem('initialRecommendations');
-            sessionStorage.removeItem('menteeIdForRecommendations');
-            sessionStorage.removeItem('recommendationsMessage');
+            clearRecommendationsSession();
         });
     }
 
@@ -754,7 +750,7 @@ document.addEventListener('DOMContentLoaded', async() => {
         hideFormMessage(mentorProfileMessage);
 
         try {
-            const response = await fetch(`/api/mentors/${mentorId}`, { method: 'GET' });
+            const response = await authorizedFetch(`/api/mentors/${mentorId}`, { method: 'GET' });
             if (response.ok) {
                 const mentor = await response.json();
                 if (mentorDashboardName) mentorDashboardName.textContent = mentor.name;
@@ -1006,7 +1002,7 @@ document.addEventListener('DOMContentLoaded', async() => {
 
         try {
             // CORRECTED: Use the /api/ endpoint for fetching JSON data
-            const response = await fetch(`/api/mentees/${menteeId}`, { method: 'GET' }); // <--- FIX HERE
+            const response = await authorizedFetch(`/api/mentees/${menteeId}`, { method: 'GET' }); // <--- FIX HERE
             if (response.ok) {
                 const mentee = await response.json();
                 if (menteeDashboardName) menteeDashboardName.textContent = mentee.name;
@@ -1487,4 +1483,72 @@ document.addEventListener('DOMContentLoaded', async() => {
 
     // --- Initial setup on page load ---
     checkSessionAndFetchUser();
+
+    // NEW: Wire up confirmation handler for sending mentorship requests
+    if (confirmPickMentorBtn) {
+        confirmPickMentorBtn.addEventListener('click', async () => {
+            try {
+                // Determine menteeId from session/user or URL context
+                let menteeId = currentUser?.mentee_profile_id || null;
+                if (!menteeId) {
+                    const parts = window.location.pathname.split('/');
+                    if (parts[1] === 'mentees' && parts[2]) {
+                        const parsed = parseInt(parts[2], 10);
+                        if (!Number.isNaN(parsed)) menteeId = parsed;
+                    }
+                }
+                if (!menteeId) menteeId = currentMenteeDashboardId || null;
+
+                if (!menteeId || !selectedMentorId) {
+                    console.warn('Missing menteeId or selectedMentorId when confirming pick:', { menteeId, selectedMentorId });
+                    // Best-effort inline message on recommendations page; fallback to alert
+                    if (recommendationsPageMessage) {
+                        recommendationsPageMessage.textContent = 'Cannot send request. Please select a mentor again or reload the page.';
+                    } else {
+                        alert('Cannot send request. Please select a mentor again or reload the page.');
+                    }
+                    return;
+                }
+
+                const msg = (modalRequestMessage?.value || '').trim();
+                const qp = msg ? `?request_message=${encodeURIComponent(msg)}` : '';
+                const endpoint = `/api/mentees/${menteeId}/requests/pick_mentor/${selectedMentorId}${qp}`;
+
+                const res = await authorizedFetch(endpoint, { method: 'POST' });
+                const result = await res.json().catch(() => ({}));
+
+                if (res.ok) {
+                    // Close modal and optionally trigger feedback prompt
+                    togglePickMentorModal();
+                    if (result && result.id) {
+                        openFeedbackModal({ requestId: result.id });
+                    }
+                    // If we are on dashboard, refresh requests; on recs page, show a friendly note
+                    if (typeof fetchMenteeMentorshipRequests === 'function' && menteeId === currentMenteeDashboardId) {
+                        fetchMenteeMentorshipRequests(menteeId);
+                    } else if (recommendationsPageMessage) {
+                        recommendationsPageMessage.textContent = 'Request sent! You can track it from your dashboard.';
+                    }
+                } else {
+                    const detail = result?.detail || 'Unknown error.';
+                    if (recommendationsPageMessage) {
+                        recommendationsPageMessage.textContent = `Error sending request: ${detail}`;
+                    } else if (menteeRequestsMessage) {
+                        showFormMessage(menteeRequestsMessage, `Error sending request: ${detail}`, 'error');
+                    } else {
+                        alert(`Error sending request: ${detail}`);
+                    }
+                }
+            } catch (error) {
+                console.error('Network error sending mentorship request:', error);
+                if (recommendationsPageMessage) {
+                    recommendationsPageMessage.textContent = `Network error sending request: ${error.message}`;
+                } else if (menteeRequestsMessage) {
+                    showFormMessage(menteeRequestsMessage, `Network error sending request: ${error.message}`, 'error');
+                } else {
+                    alert(`Network error sending request: ${error.message}`);
+                }
+            }
+        });
+    }
 });
