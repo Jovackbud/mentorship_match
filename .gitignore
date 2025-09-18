@@ -10,4 +10,31 @@ venv
 *.sqlite
 *.log
 faiss_mentor_index.bin
-faiss_mentor_index.bin
+
+# Python caches
+__pycache__/
+*.py[cod]
+*.so
+
+# Test/coverage artifacts
+.pytest_cache/
+.coverage
+coverage.xml
+.htmlcov/
+
+# IDE/editor
+.vscode/
+.idea/
+*.code-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Node/Frontend (if any builds are added later)
+node_modules/
+dist/
+build/
+
+# Local env / secrets (already have .env)
+.env.*

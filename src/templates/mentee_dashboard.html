@@ -1,25 +1,31 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <article>
+    <article class="compact">
         <header>
-            <h1>Mentee Dashboard <small>({{ mentee_id }})</small></h1>
+            <h1>Mentee Dashboard <small id="mentee-dashboard-name"></small></h1> {# Conciser heading, populated by JS #}
             <p class="lead">View and manage your mentorship requests.</p>
         </header>
 
         <section id="mentee-profile-summary">
             <h2>Your Profile</h2>
-            <p><strong>Mentee ID:</strong> {{ mentee_id }}</p>
+            <p id="mentee-profile-message" aria-live="polite" hidden></p>
             <p>Loading additional profile details...</p>
+            <footer class="grid">
+                <button type="button" id="find-new-mentors-btn">Find New Mentor Matches</button>
+                <a href="/profile/mentee/edit" role="button" class="secondary">Edit Profile</a>
+            </footer>
         </section>
 
         <section id="mentorship-requests-section" style="margin-top: 2rem;">
             <h2>Your Mentorship Journeys</h2>
-            <p id="mentee-requests-message" aria-live="polite" style="display: none;"></p>
+            <p id="mentee-requests-message" aria-live="polite" hidden></p>
             <div id="mentee-mentorship-requests-list" class="grid">
                 <!-- Mentorship requests will be injected here by JavaScript -->
                 <p>Loading your requests...</p>
             </div>
         </section>
+
+
     </article>
 {% endblock %}

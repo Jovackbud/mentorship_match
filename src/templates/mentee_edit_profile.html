@@ -1,0 +1,54 @@
+<!-- src/templates/mentee_edit_profile.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<article class="compact">
+  <header>
+    <h1>Edit Mentee Profile</h1>
+    <p class="lead">Update your profile used for matching.</p>
+  </header>
+
+  <form id="mentee-edit-form">
+    <label>
+      Name
+      <input type="text" id="mentee_name" name="name" required minlength="2" maxlength="100">
+    </label>
+    <label>
+      Bio
+      <textarea id="mentee_bio" name="bio" rows="4" required></textarea>
+    </label>
+    <label>
+      Goals
+      <textarea id="mentee_goals" name="goals" rows="3"></textarea>
+    </label>
+    <label>
+      Mentorship Style
+      <input type="text" id="mentee_style" name="mentorship_style">
+    </label>
+    <fieldset>
+      <legend>Availability</legend>
+      <label>
+        Hours per month
+        <input type="number" id="mentee_hours_per_month" name="hours_per_month" min="0">
+      </label>
+    </fieldset>
+    <fieldset>
+      <legend>Preferences</legend>
+      <label>
+        Industries (comma-separated)
+        <input type="text" id="mentee_preferences_industries" name="preferences_industries">
+      </label>
+      <label>
+        Languages (comma-separated)
+        <input type="text" id="mentee_preferences_languages" name="preferences_languages">
+      </label>
+    </fieldset>
+    <footer class="grid">
+      <button type="submit">Save Changes</button>
+      <button type="button" id="mentee-delete-btn" class="contrast">Delete Profile</button>
+      <a href="/" role="button" class="secondary">Cancel</a>
+    </footer>
+    <p id="mentee-edit-message" aria-live="polite" hidden></p>
+  </form>
+</article>
+{% endblock %}

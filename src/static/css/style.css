@@ -1,37 +1,34 @@
-/* Custom styles for success/error messages */
-#response-message[data-variant="success"] {
-    color: var(--pico-color-success); /* Pico's success color */
-    background-color: var(--pico-form-element-background-color); /* Light background */
-    border-left: 5px solid var(--pico-color-success);
-    padding: var(--pico-spacing);
-    margin-top: var(--pico-spacing);
-    font-weight: bold;
-}
-
-#response-message[data-variant="error"] {
-    color: var(--pico-color-danger); /* Pico's danger color */
-    background-color: var(--pico-form-element-background-color);
-    border-left: 5px solid var(--pico-color-danger);
-    padding: var(--pico-spacing);
-    margin-top: var(--pico-spacing);
-    font-weight: bold;
-}
-
-/* Custom styles for success/error messages */
+/* src/static/css/style.css */
+/* General styling for success messages across the application */
+/* Targeting all message elements by ID directly to ensure high specificity */
+#register-response-message[data-variant="success"],
+#login-response-message[data-variant="success"],
 #mentor-response-message[data-variant="success"],
 #mentee-response-message[data-variant="success"],
-#requests-message[data-variant="success"] {
+#feedback-response-message[data-variant="success"],
+#requests-message[data-variant="success"],           /* Mentor Dashboard requests message */
+#mentee-requests-message[data-variant="success"],    /* Mentee Dashboard requests message */
+#mentor-profile-message[data-variant="success"],     /* Mentor Dashboard profile fetch message */
+#mentee-profile-message[data-variant="success"] {    /* Mentee Dashboard profile fetch message */
     color: var(--pico-color-success); /* Pico's success color */
-    background-color: var(--pico-form-element-background-color); /* Light background */
+    background-color: var(--pico-form-element-background-color);
     border-left: 5px solid var(--pico-color-success);
     padding: var(--pico-spacing);
     margin-top: var(--pico-spacing);
     font-weight: bold;
 }
 
+/* General styling for error messages across the application */
+/* Targeting all message elements by ID directly to ensure high specificity */
+#register-response-message[data-variant="error"],
+#login-response-message[data-variant="error"],
 #mentor-response-message[data-variant="error"],
 #mentee-response-message[data-variant="error"],
-#requests-message[data-variant="error"] {
+#feedback-response-message[data-variant="error"],
+#requests-message[data-variant="error"],             /* Mentor Dashboard requests message */
+#mentee-requests-message[data-variant="error"],      /* Mentee Dashboard requests message */
+#mentor-profile-message[data-variant="error"],       /* Mentor Dashboard profile fetch message */
+#mentee-profile-message[data-variant="error"] {      /* Mentee Dashboard profile fetch message */
     color: var(--pico-color-danger); /* Pico's danger color */
     background-color: var(--pico-form-element-background-color);
     border-left: 5px solid var(--pico-color-danger);
@@ -40,21 +37,45 @@
     font-weight: bold;
 }
 
-/* Styles for mentorship request cards */
-#mentorship-requests-list article {
+/* Specific styling for inline small messages (e.g., password match, rating validation) */
+#password-match-feedback[data-variant="error"],
+#rating-feedback[data-variant="error"] { 
+    color: var(--pico-color-danger);
+    margin-top: 0.5rem; /* Adjust spacing as needed */
+    font-weight: normal; /* Less bold for inline feedback */
+    background-color: transparent; /* No background for inline small messages */
+    border-left: none; /* No border for inline small messages */
+    padding: 0;
+}
+
+
+/* Styles for mentorship request cards and recommendation cards */
+#mentorship-requests-list article,
+#mentor-recommendations article {
     margin-bottom: var(--pico-spacing);
     border: 1px solid var(--pico-form-element-border-color);
     border-radius: var(--pico-border-radius);
     padding: var(--pico-spacing);
+    transition: all 0.2s ease-in-out; /* Smooth transition for hover effects */
 }
 
-#mentorship-requests-list article h5 {
+/* Optional: Add a subtle hover effect for cards */
+#mentorship-requests-list article:hover,
+#mentor-recommendations article:hover {
+    box-shadow: var(--pico-box-shadow); /* Pico's default box-shadow on hover */
+    transform: translateY(-2px); /* Slightly lift the card */
+}
+
+
+#mentorship-requests-list article h5,
+#mentor-recommendations article h4 {
     margin-top: 0;
     margin-bottom: var(--pico-spacing-0-5);
     color: var(--pico-primary);
 }
 
-#mentorship-requests-list article p {
+#mentorship-requests-list article p,
+#mentor-recommendations article p {
     margin-bottom: var(--pico-spacing-0-25);
 }
 
@@ -88,7 +109,9 @@
     border-radius: var(--pico-border-radius);
 }
 
-#mentorship-requests-list footer button {
+/* Button spacing within card footers */
+#mentorship-requests-list footer button,
+#mentor-recommendations footer button {
     margin-right: var(--pico-spacing-0-5);
 }
 
@@ -100,4 +123,50 @@
 /* Ensure cards within their containers stack vertically with some margin */
 .cards-container article {
     margin-bottom: var(--pico-spacing); /* Space between individual cards */
+}
+
+/* --- Navigation Specific Styles --- */
+
+/* Fix for black dots in navigation */
+/* Target li elements directly within the nav ul for maximum specificity */
+nav ul li {
+    list-style: none !important; /* Force removal of bullet points */
+    /* Padding-left can be managed by Pico's defaults or nav ul */
+}
+
+/* Ensure the parent ul itself has no default left padding that could create space for bullets */
+nav ul {
+    padding-left: 0 !important;
+}
+
+/* Align the nav content vertically if it contains different element types */
+nav ul {
+    align-items: center;
+}
+
+/* Adjust spacing for navigation links that are not buttons */
+/* This is particularly for the new dynamic dashboard links */
+#main-nav-links-right li a.secondary {
+    padding: var(--pico-nav-link-spacing-vertical) var(--pico-nav-link-spacing-horizontal);
+    margin: 0; /* Remove any default margins that might interfere */
+    display: block; /* Make the whole area clickable */
+}
+
+/* Reduce margin-bottom for labels inside fieldsets for a tighter look */
+fieldset label {
+    margin-bottom: var(--pico-spacing-0-5);
+}
+
+
+/* Compact layout helpers */
+article.compact p { margin-bottom: 0.5rem; line-height: 1.35; }
+article.compact li { margin-bottom: 0.35rem; line-height: 1.35; }
+article.compact h1, article.compact h2, article.compact h3 { margin-bottom: 0.6rem; }
+article.compact section { margin-bottom: 1.25rem; }
+
+/* Cards also use compact spacing */
+#mentorship-requests-list article p,
+#mentor-recommendations article p {
+    margin-bottom: 0.4rem;
+    line-height: 1.35;
 }

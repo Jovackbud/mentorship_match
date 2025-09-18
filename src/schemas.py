@@ -1,10 +1,43 @@
-import uuid # For consistency in type hints if we ever revert to UUIDs; for now, int.
-from datetime import datetime
+# src/schemas.py
+import uuid
+from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
-from .models import MentorshipStatus # Import the Enum from models
+from .models import MentorshipStatus
 
-# --- Input Models ---
+# --- NEW: Authentication Schemas ---
+class UserBase(BaseModel):
+    username: str = Field(..., min_length=3, max_length=50)
+
+class UserCreate(UserBase):
+    password: str = Field(..., min_length=6)
+
+class UserLogin(UserBase):
+    password: str
+
+class UserResponse(UserBase):
+    id: int
+    is_active: bool
+    created_at: datetime
+    updated_at: Optional[datetime]
+
+    # ADDED: Fields for associated profile IDs
+    mentor_profile_id: Optional[int] = None
+    mentee_profile_id: Optional[int] = None
+
+    model_config = {
+        "from_attributes": True,
+        "arbitrary_types_allowed": True
+    }
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    username: Optional[str] = None
+
+# --- Input Models (Existing) ---
 
 class AvailabilityInput(BaseModel):
     hours_per_month: Optional[int] = Field(None, description="Estimated hours available per month.")
@@ -20,6 +53,7 @@ class PreferencesInput(BaseModel):
     mentorship_style: Optional[str] = Field(None, description="Preferred mentorship style (for mentees).")
 
 class MentorCreate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100, description="The mentor's full name.") # ADDED name
     bio: str = Field(..., min_length=20, description="Brief biography or expertise summary.")
     expertise: Optional[str] = Field(None, description="Specific areas of expertise (e.g., 'Software Engineering, Product Management').")
     capacity: int = Field(1, ge=1, description="Maximum number of mentees this mentor can take.")
@@ -27,17 +61,8 @@ class MentorCreate(BaseModel):
     preferences: Optional[PreferencesInput] = Field(None, description="Mentor's preferences for mentees.")
     demographics: Optional[Dict[str, Any]] = Field(None, description="Optional demographic information.")
 
-class MentorUpdate(MentorCreate):
-    # All fields become optional for an update
-    bio: Optional[str] = Field(None, min_length=20, description="Brief biography or expertise summary.")
-    capacity: Optional[int] = Field(None, ge=1, description="Maximum number of mentees this mentor can take.")
-    expertise: Optional[str] = None
-    availability: Optional[AvailabilityInput] = None
-    preferences: Optional[PreferencesInput] = None
-    demographics: Optional[Dict[str, Any]] = None
-
-
 class MenteeMatchRequest(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100, description="Your full name.") # ADDED name
     bio: str = Field(..., min_length=20, description="Your brief biography or CV summary.")
     goals: Optional[str] = Field(None, description="Your mentorship goals (e.g., 'Improve leadership skills', 'Land a FAANG job').")
     preferences: Optional[PreferencesInput] = Field(None, description="Your preferences for a mentor.")
@@ -46,21 +71,32 @@ class MenteeMatchRequest(BaseModel):
     request_message: Optional[str] = Field(None, description="Optional message to be sent with mentorship requests (will be used for pick_mentor).")
 
 class MentorshipStatusUpdate(BaseModel):
-    status: MentorshipStatus # Use the Enum directly for validation
+    status: MentorshipStatus
     rejection_reason: Optional[str] = Field(None, description="Only relevant for REJECTED status.")
-    # No `completion_date` here, it's set by the server on /complete endpoint
 
-class FeedbackCreate(BaseModel):
-    mentee_id: int
-    mentor_id: int
-    rating: int = Field(..., ge=1, le=5, description="Rating of the mentor-mentee match (1-5).")
-    comment: Optional[str] = Field(None, description="Optional comment about the match.")
+class MenteeUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=2, max_length=100, description="Your full name.")
+    bio: Optional[str] = Field(None, min_length=20, description="Your brief biography or CV summary.")
+    goals: Optional[str] = Field(None, description="Your mentorship goals.")
+    preferences: Optional[PreferencesInput] = Field(None, description="Your preferences for a mentor.")
+    availability: Optional[AvailabilityInput] = Field(None, description="Your availability details for mentorship.")
+    mentorship_style: Optional[str] = Field(None, description="Your preferred mentorship style (e.g., 'hands-on').")
 
+class MentorUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=2, max_length=100, description="Your full name.")
+    bio: Optional[str] = Field(None, min_length=20, description="Your brief biography or CV summary.")
+    expertise: Optional[str] = Field(None, description="Your areas of expertise.")
+    capacity: Optional[int] = Field(None, ge=1, description="Your maximum number of mentees.")
+    availability: Optional[AvailabilityInput] = Field(None, description="Your availability details for mentorship.")
+    preferences: Optional[PreferencesInput] = Field(None, description="Your preferences for mentees.")
+    demographics: Optional[Dict[str, Any]] = Field(None, description="Your demographic information.")
 
-# --- Output Models ---
+# --- Output Models (Existing + MenteeResponse) ---
 
 class MentorResponse(BaseModel):
     id: int
+    user_id: int
+    name: str # ADDED name
     bio: str
     expertise: Optional[str]
     capacity: int
@@ -70,7 +106,25 @@ class MentorResponse(BaseModel):
     demographics: Optional[Dict[str, Any]]
     is_active: bool
     created_at: datetime
-    updated_at: datetime
+    updated_at: Optional[datetime]
+
+    model_config = {
+        "from_attributes": True,
+        "arbitrary_types_allowed": True
+    }
+
+class MenteeResponse(BaseModel):
+    id: int
+    user_id: int
+    name: str # ADDED name
+    bio: str
+    goals: Optional[str]
+    preferences: Optional[Dict[str, Any]]
+    availability: Optional[Dict[str, Any]]
+    mentorship_style: Optional[str]
+    is_active: bool
+    created_at: datetime
+    updated_at: Optional[datetime]
 
     model_config = {
         "from_attributes": True,
@@ -79,6 +133,7 @@ class MentorResponse(BaseModel):
 
 class MatchedMentor(BaseModel):
     mentor_id: int
+    mentor_name: str
     mentor_bio_snippet: str
     re_rank_score: float
     explanations: List[str]
@@ -86,19 +141,42 @@ class MatchedMentor(BaseModel):
 
 class MatchResponse(BaseModel):
     mentee_id: int = Field(..., description="The ID of the mentee whose match was requested.")
+    mentee_name: str = Field(..., description="The name of the mentee whose match was requested.") # ADDED name
     recommendations: List[MatchedMentor] = Field([], description="List of recommended mentors.")
     message: str = "Recommendations generated successfully."
 
 class MentorshipRequestResponse(BaseModel):
     id: int
     mentee_id: int
+    mentee_name: Optional[str] = None # ADDED name (Optional as it's populated dynamically from relationships)
     mentor_id: int
-    status: MentorshipStatus # Use the Enum for response
+    mentor_name: Optional[str] = None # ADDED name (Optional as it's populated dynamically from relationships)
+    status: MentorshipStatus
     request_message: Optional[str]
     request_date: datetime
     acceptance_date: Optional[datetime]
     rejection_reason: Optional[str]
-    completed_date: Optional[datetime] # New field for completed requests
+    completed_date: Optional[datetime]
+
+    model_config = {
+        "from_attributes": True,
+        "arbitrary_types_allowed": True
+    }
+
+class FeedbackCreate(BaseModel):
+    mentee_id: int = Field(..., description="ID of the mentee submitting feedback")
+    mentor_id: int = Field(..., description="ID of the mentor being reviewed")
+    rating: int = Field(..., ge=1, le=5, description="Rating from 1 to 5")
+    comment: Optional[str] = Field(None, description="Optional feedback comment")
+
+    model_config = {
+        "from_attributes": True,
+        "arbitrary_types_allowed": True
+    }
+
+class FeedbackResponse(FeedbackCreate):
+    id: int
+    created_at: datetime
 
     model_config = {
         "from_attributes": True,

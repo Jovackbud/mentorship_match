@@ -1,11 +1,17 @@
+<!-- src/templates/mentor_signup.html -->
 {% extends "base.html" %}
 
 {% block content %}
     <article>
-        <h1>Become a Mentor</h1>
+        <h1>Become a Mentor</h1> {# Point 4: Harmonized wording #}
         <p class="lead">Share your expertise and guide the next generation of professionals.</p>
 
         <form id="mentor-signup-form">
+            <label for="name">
+                Your Full Name
+                <input type="text" id="name" name="name" placeholder="e.g., Alice Johnson" required minlength="2" maxlength="100">
+                <small>Your name will be visible to potential mentees.</small>
+            </label>
             <div class="grid">
                 <label for="bio">
                     Biography / Expertise Summary
@@ -34,29 +40,44 @@
                 </label>
             </div>
 
-            <!-- Simplified Preferences: Industries as comma-separated -->
             <label for="preferences_industries">
                 Preferred Mentee Industries (comma-separated, optional)
                 <input type="text" id="preferences_industries" name="preferences_industries" placeholder="e.g., Tech, Fintech, Healthcare">
                 <small>Industries you prefer your mentees to be in.</small>
             </label>
 
-            <!-- Simplified Preferences: Languages as comma-separated -->
             <label for="preferences_languages">
                 Preferred Mentee Languages (comma-separated, optional)
                 <input type="text" id="preferences_languages" name="preferences_languages" placeholder="e.g., English, Spanish">
                 <small>Languages you are comfortable mentoring in.</small>
             </label>
 
-            <!-- Demographics as raw JSON for simplicity, with example -->
-            <label for="demographics">
-                Demographics (JSON format, optional)
-                <textarea id="demographics" name="demographics" rows="3" placeholder='{"gender": "Non-binary", "ethnicity": "Asian"}'></textarea>
-                <small>Optional: Share demographic info for diversity matching (e.g., <code>{"gender": "Female", "years_experience": 10}</code>).</small>
-            </label>
+            <fieldset>
+                <legend>Optional Demographics <small>(for diversity matching)</small></legend>
+                <div class="grid">
+                    <label for="demographics_gender">
+                        Gender
+                        <select id="demographics_gender" name="demographics_gender">
+                            <option value="">Select...</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Non-binary">Non-binary</option>
+                            <option value="Prefer not to say">Prefer not to say</option>
+                        </select>
+                    </label>
+                    <label for="demographics_ethnicity">
+                        Ethnicity / Background
+                        <input type="text" id="demographics_ethnicity" name="demographics_ethnicity" placeholder="e.g., Asian, Hispanic, Caucasian">
+                    </label>
+                </div>
+                <label for="demographics_years_experience">
+                    Years of Professional Experience
+                    <input type="number" id="demographics_years_experience" name="demographics_years_experience" placeholder="e.g., 5" min="0">
+                </label>
+            </fieldset>
             
-            <button type="submit">Register as Mentor</button>
-            <p id="mentor-response-message" aria-live="polite" style="margin-top: 1rem; display: none;"></p>
+            <button type="submit">Become a Mentor</button> {# Point 4: Harmonized wording #}
+            <p id="mentor-response-message" aria-live="polite" style="margin-top: 1rem;" hidden></p>
         </form>
     </article>
 {% endblock %}

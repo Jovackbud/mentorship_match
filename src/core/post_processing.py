@@ -52,7 +52,8 @@ def post_process_matches(
         # Assemble the final recommendation structure
         recommendation = {
             "mentor_id": mentor.get('id'),
-            "mentor_bio_snippet": mentor.get('bio', '')[:100] + '...',
+            "mentor_name": mentor.get('name', 'Unknown Mentor'),
+            "mentor_bio_snippet": mentor.get('bio', '')[:100] + ('...' if len(mentor.get('bio', '')) > 100 else ''),
             "re_rank_score": mentor.get('__re_rank_score'),
             "explanations": explanations,
             "mentor_details": {
@@ -70,11 +71,14 @@ if __name__ == '__main__':
 
     # Example ranked mentors from re_ranking.py output
     ranked_mentors = [
-        {'id': 3, 'bio': 'Product Manager with 10 years experience in tech startups. Specializing in AI products.', 'expertise': 'Product Management', 'capacity': 2, 'current_mentees': 0, '__score': 0.70, '__overlap_minutes': 120, '__preference_match_count': 2, '__industry_match': True, '__language_match': True, '__re_rank_score': 2.90},
-        {'id': 1, 'bio': 'Experienced software engineer with 10 years in Python backend development. Focus on scalable systems.', 'expertise': 'Software Engineering', 'capacity': 2, 'current_mentees': 0, '__score': 0.85, '__overlap_minutes': 90, '__preference_match_count': 2, '__industry_match': True, '__language_match': True, '__re_rank_score': 2.75},
-        {'id': 4, 'bio': 'Seasoned Frontend Developer with expertise in React and Vue. Passionate about user experience.', 'expertise': 'Frontend Development', 'capacity': 2, 'current_mentees': 0, '__score': 0.90, '__overlap_minutes': 60, '__preference_match_count': 1, '__industry_match': True, '__language_match': False, '__re_rank_score': 2.00},
-        {'id': 2, 'bio': 'Data scientist focusing on ethical AI and ML models. Helping aspiring data professionals.', 'expertise': 'Data Science', 'capacity': 1, 'current_mentees': 0, '__score': 0.88, '__overlap_minutes': 30, '__preference_match_count': 1, '__industry_match': True, '__language_match': False, '__re_rank_score': 1.68},
+        {'id': 3, 'name': 'Charlie Brown', 'bio': 'Product Manager with 10 years experience in tech startups. Specializing in AI products.', 'expertise': 'Product Management', 'capacity': 2, 'current_mentees': 0, '__score': 0.70, '__overlap_minutes': 120, '__preference_match_count': 2, '__industry_match': True, '__language_match': True, '__re_rank_score': 2.90},
+        {'id': 1, 'name': 'Alice Smith', 'bio': 'Experienced software engineer with 10 years in Python backend development. Focus on scalable systems.', 'expertise': 'Software Engineering', 'capacity': 2, 'current_mentees': 0, '__score': 0.85, '__overlap_minutes': 90, '__preference_match_count': 2, '__industry_match': True, '__language_match': True, '__re_rank_score': 2.75},
+        {'id': 4, 'name': 'David Lee', 'bio': 'Seasoned Frontend Developer with expertise in React and Vue. Passionate about user experience.', 'expertise': 'Frontend Development', 'capacity': 2, 'current_mentees': 0, '__score': 0.90, '__overlap_minutes': 60, '__preference_match_count': 1, '__industry_match': True, '__language_match': False, '__re_rank_score': 2.00},
+        {'id': 2, 'name': 'Eve Green', 'bio': 'Data scientist focusing on ethical AI and ML models. Helping aspiring data professionals.', 'expertise': 'Data Science', 'capacity': 1, 'current_mentees': 0, '__score': 0.88, '__overlap_minutes': 30, '__preference_match_count': 1, '__industry_match': True, '__language_match': False, '__re_rank_score': 1.68},
     ]
+    # NOTE: I added 'name' fields to the example ranked_mentors in __main__ block
+    # and adjusted the bio_snippet to handle cases where bio is shorter than 100 chars.
+
 
     mentee_profile = {'id': 101, 'bio': 'Looking for a tech mentor.'}
 
@@ -83,7 +87,7 @@ if __name__ == '__main__':
 
     print("\nFinal Recommendations:")
     for rec in recommendations:
-        print(f"  Mentor ID: {rec['mentor_id']}, Score: {rec['re_rank_score']:.2f}")
+        print(f"  Mentor ID: {rec['mentor_id']}, Name: {rec['mentor_name']}, Score: {rec['re_rank_score']:.2f}")
         print(f"    Explanations: {'; '.join(rec['explanations'])}")
         print(f"    Details: {rec['mentor_details']}")
 

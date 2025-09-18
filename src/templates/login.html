@@ -1,0 +1,25 @@
+<!-- src/templates/login.html -->
+{% extends "base.html" %}
+
+{% block content %}
+    <article>
+        <h1>Login to MentorMatch</h1>
+        <p class="lead">Access your dashboard and manage your profiles.</p>
+
+        <form id="login-form">
+            <label for="username">
+                Username
+                <input type="text" id="username" name="username" placeholder="Your username" required>
+            </label>
+
+            <label for="password">
+                Password
+                <input type="password" id="password" name="password" placeholder="Your password" required>
+            </label>
+            
+            <button type="submit">Login</button>
+            <p id="login-response-message" aria-live="polite" style="margin-top: 1rem;" hidden></p>
+            <p>Don't have an account? <a href="/register">Register here</a>.</p>
+        </form>
+    </article>
+{% endblock %}
