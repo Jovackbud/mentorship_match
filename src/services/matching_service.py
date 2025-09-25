@@ -57,7 +57,7 @@ class MatchingService:
         logger.info(f"Starting matching process for mentee: {mentee_profile_data.get('name', 'Unknown Mentee')}.")
 
         # 1. Embedding Mentee Profile
-        mentee_text = f"{mentee_profile_data.get('bio', '')} {mentee_profile_data.get('goals', '')} {mentee_profile_data.get('name', '')}" 
+        mentee_text = f"{mentee_profile_data.get('bio', '')} {mentee_profile_data.get('goals', '')}" 
         mentee_embedding = get_embeddings([mentee_text])
 
         if mentee_embedding is None or not mentee_embedding:
