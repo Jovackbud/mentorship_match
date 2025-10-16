@@ -106,6 +106,12 @@ document.addEventListener('DOMContentLoaded', async() => {
                     if (navFeedback) navFeedback.hidden = true;
                 }
             }
+            // Redirect if accessing wrong dashboard
+            if (window.location.pathname.startsWith('/dashboard/mentor/') && !currentUser.mentor_profile_id) {
+                window.location.href = `/dashboard/mentee/${currentUser.mentee_profile_id}`;
+            } else if (window.location.pathname.startsWith('/dashboard/mentee/') && !currentUser.mentee_profile_id) {
+                window.location.href = `/dashboard/mentor/${currentUser.mentor_profile_id}`;
+            }
         } else {
             if (navMentorDashboard) navMentorDashboard.hidden = true;
             if (navMenteeDashboard) navMenteeDashboard.hidden = true;
@@ -667,7 +673,6 @@ document.addEventListener('DOMContentLoaded', async() => {
                 <h4>${mentor.mentor_name || 'Unknown Mentor'}</h4>
                 <p>${bioSnippet}</p>
                 <p><strong>Expertise:</strong> ${mentor.mentor_details.expertise || 'Not specified'}</p>
-                {# Point 6: Removed mentor capacity from recommendations page #}
                 <h5>Why this match?</h5>
                 <ul>
                     ${mentor.explanations.map(exp => `<li>${exp}</li>`).join('')}
@@ -1553,7 +1558,10 @@ document.addEventListener('DOMContentLoaded', async() => {
                     if (typeof fetchMenteeMentorshipRequests === 'function' && menteeId === currentMenteeDashboardId) {
                         fetchMenteeMentorshipRequests(menteeId);
                     } else if (recommendationsPageMessage) {
-                        recommendationsPageMessage.textContent = 'Request sent! You can track it from your dashboard.';
+                        recommendationsPageMessage.textContent = 'Request sent! Redirecting to your dashboard...';
+                        setTimeout(() => {
+                            window.location.href = `/dashboard/mentee/${menteeId}`;
+                        }, 1000);
                     }
                 } else {
                     const detail = result?.detail || 'Unknown error.';
